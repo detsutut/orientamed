@@ -1,0 +1,50 @@
+1. Criteri classificativi dell'artrite reumatoide 2010
+Il lavoro si è concentrato sull'identificazione, tra i pazienti che presentano una sinovite, dei fattori che meglio discriminavano tra coloro che erano e quelli che non erano ad alto rischio di malattia persistente e/o erosiva - questo è il paradigma attuale che sta alla base del costrutto di malattia artrite reumatoide.
+La classificazione come "artrite reumatoide definita" si basa sulla presenza accertata di sinovite/tumefazione articolare in almeno un'articolazione, sull'assenza di una diagnosi alternativa che spieghi meglio la sinovite  e sul raggiungimento di un punteggio totale pari o superiore a 6 (su un possibile 10) dai punteggi individuali in quattro domini: numero e sede delle articolazioni coinvolte (range 0-5), anomalie sierologiche (range 0-3), elevazione degli indici di fase acuta (range 0-1) e durata dei sintomi (due livelli; range 0-1). Questo nuovo sistema di classificazione ridefinisce l'attuale paradigma dell'artrite reumatoide, concentrandosi sulle caratteristiche nelle fasi più precoci della malattia che sono associate alla malattia persistente e/o erosiva, piuttosto che definirla dalle caratteristiche dello stadio avanzato.
+
+1.1. Eleggibilità all’applicazione dei nuovi criteri
+I criteri classificativi possono essere applicati a qualsiasi paziente o individuo, purché siano soddisfatti due requisiti obbligatori: in primo luogo, deve esserci evidenza di una sinovite clinica attualmente attiva (cioè tumefazione) in almeno un'articolazione, determinata da un valutatore esperto. Tutte le articolazioni di una conta articolare completa possono essere valutate a questo scopo, ad eccezione delle articolazioni interfalangee distali (IFD), della prima articolazione metatarso-falangea (MTF) e la prima articolazione carpometacarpale (CMC). In secondo luogo, i criteri possono essere applicati solo a quei pazienti nei quali la sinovite osservata non sia meglio spiegata da un'altra diagnosi. 
+
+1.2. Criteri classificativi per Artrite reumatoide
+Per classificare un paziente come affetto o meno da artrite reumatoide conclamata, è necessario ottenere un'anamnesi della durata dei sintomi, una valutazione approfondita delle articolazioni e almeno un test sierologico (fattore reumatoide/RF o anticorpi anti peptide ciclico citrullinato/aCCP) e una indice di fase acuta (velocità di eritrosedimentazione (VES) o proteina C-reattiva (PCR)).
+
+Criteri classificativi dell'artrite reumatoide(algoritmo basato sul punteggio: un punteggio maggiore di 6/10 è necessario per classificare un paziente come affetto da artrite reumatoide definita)
+- Coinvolgimento articolare:
+	- 1 grande articolazione: 0 punti
+	- 2-10 grandi articolazioni: 1 punto
+	- 1-3 piccole articolazione (con o senza il coinvolgimento delle grandi articolazioni): 2 punti
+	- 4-10 piccole articolazione (con o senza il coinvolgimento delle grandi articolazioni): 3 punti
+	- più di 10 articolazioni (almeno 1 piccola articolazione): 5 punti
+- Sierologia (almeno il risultato di un test è necessario per la classificazione):
+	- fattore reumatoide negativo e accp negativo: 0 punti
+	- fattore reumatoide o accp positivo a basso titolo: 2 punti
+	- fattore reumatoide o accp positivo ad alto titolo: 3 punti
+- Reattanti della fase acuta (per la classificazione il risultato di almeno 1un test)
+	PCR normale e VES normale: 0 punti 
+	PCR anormale o VES anormale: 1 punto
+- Durata dei sintomi
+	<6 settimane: 0 punti
+	≥6 settimane: 1 punto.
+
+I criteri sono finalizzati alla classificazione dei pazienti che di recente esordio. Inoltre, pazienti con malattia erosiva tipica dell'artrite reumatoide (AR) con un'anamnesi compatibile con il precedente soddisfacimento dei criteri del 2010 dovrebbero essere classificati come affetti da artrite reumatoide.
+Pazienti con malattia di lunga durata, compresi quelli la cui malattia è inattiva (con o senza trattamento) che, sulla base di dati disponibili retrospettivamente, hanno precedentemente soddisfatto criteri del 2010 dovrebbero essere classificati come affetti da artrite reumatoide. 
+
+1.3. Altre presentazioni cliniche: erosioni e malattia tardiva
+Oltre a quelli di nuova presentazione, è stato necessario prendere in considerazione altri tre gruppi di pazienti: (1) quelli con erosioni tipiche dell'artrite reumatoide sono stati ritenuti compatibili con artrite reumatoide e possono essere classificati come tali, (2) quelli con malattia di lunga durata, attiva o inattiva, che, sulla base dei dati retrospettivamente disponibili, hanno precedentemente soddisfatto i criteri classificativi, possono analogamente essere classificati come affetti da artrite reumatoide definita e (3) nell'ambito della malattia precoce che viene trattata, possono essere classificati come affetti da artrite reumatoide gli individui che non soddisfano i nuovi criteri al momento della presentazione iniziale, ma possono farlo con l'evolversi della loro condizione nel tempo. 
+
+1.4. Glossario delle definizioni
+
+1.4.1. Definizione di articolazione coinvolta
+Il coinvolgimento articolare si riferisce a qualsiasi articolazione che presenta tumefazione o dolorabilità all'esame che è indicativa di una sinovite attiva. Inoltre, qualsiasi articolazione con una lesione recente nota che potrebbe contribuire a tumefazione e dolorabilità non deve essere presa in considerazione.
+Per confermare il riscontro clinico di sinovite si possono utilizzare ulteriori prove di infiammazione articolare ottenute con altre tecniche di imaging (come la risonanza magnetica o l’ecografia).
+
+1.4.2. Definizione di piccole articolazioni
+Le piccole articolazioni comprendono le articolazioni MCF, interfalangee prossimali, dalla seconda alla quinta MTF, le articolazioni interfalangee del pollice e i polsi.
+
+1.4.3. Definizione di grandi articolazioni
+Il termine "grandi articolazioni" si riferisce a spalle, gomiti, anche, ginocchia e caviglie. 
+
+1.5. Discussione
+È importante, tuttavia, sottolineare che i criteri sono da applicare solo a pazienti eleggibili, nei quali la presenza di un'evidente sinovite clinica in almeno un'articolazione è centrale. I criteri non dovrebbero essere applicati a pazienti con semplice artralgia o a individui normali.
+La simmetria non è una caratteristica dei nuovi criteri, in quanto non ha peso indipendente in nessuna fase del processo di sviluppo dei criteri.
+L'uso dei nuovi criteri dovrebbe essere limitato a una popolazione target in cui non esiste una spiegazione alternativa (cioè una diagnosi definita) per la loro sinovite.

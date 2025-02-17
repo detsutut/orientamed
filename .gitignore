@@ -2,6 +2,15 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.env
+
+# Pycharm junk
+.DS_Store
+.idea/
+*/.DS_Store
+*/.idea
+.gradio
+*/.gradio
 
 # C extensions
 *.so

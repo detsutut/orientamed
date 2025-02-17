@@ -1,0 +1,29 @@
+working-dir: '/Users/detsutut/Repositories/dheal-com-rag-demo/rag/'
+vector-db-path: './data/reuma.db'
+avatar-img: './assets/dot.gif'
+kb-folder: './data/reuma'
+chunk-size: 500
+chunk-overlap: 100
+globs:
+  - '**/*.txt'
+  - '**/*.pdf'
+gradio:
+  secrets-path: './gradio_secrets.env'
+  flagging-options:
+    - "Errato"
+    - "Incompleto"
+    - "Altro"
+  greeting-messages:
+    - "Sono un assistente per il triage reumatico. Come posso aiutarti?"
+    - "Sono un assistente per il triage reumatico. Come posso esserti d'aiuto?"
+    - "Ciao, sono un assistente specializzato nel triage reumatico. Come posso aiutarti?"
+  examples:
+    - "Quali sono i fattori da considerare per la polimialgia reumatica?"
+    - "Il mio paziente presenta lombalgia che dura da più di 3 mesi. Questo è un parametro rilevante per diagnosticare la spondiloartrite assiale (SpA)?"
+    - "Il paziente lamenta dolore notturno che migliorava alzandosi dal letto e rigiditá mattutina."
+    - "Ho un paziente con gonfiore e dolore alla caviglia. Può essere gotta anche senza coinvolgimento della prima articolazione metatarso-falangea?"
+bedrock:
+  secrets-path: './aws_secrets.env'
+  region: 'eu-west-1'
+  embedder-id: 'cohere.embed-multilingual-v3'
+  model-id: 'mistral.mixtral-8x7b-instruct-v0:1'

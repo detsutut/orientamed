@@ -1,0 +1,25 @@
+1. Criteri di classificazione della Gotta 2015
+I fattori chiave iniziali identificati come importanti per la classificazione della gotta sono stati la presenza di cristalli urato monosodico, la distribuzione del coinvolgimento articolare, l'intensità degli episodi sintomatici, il tempo di raggiungimento del dolore massimo e di risoluzione, la natura episodica dei sintomi, la presenza di tofi rilevati clinicamente, il livello di urato/acido urico sierico e le caratteristiche di imaging/agl esami strumentali.
+
+
+1.1. Criteri di ingresso, di sufficienza e di esclusione
+I criteri di classificazione devono essere applicabili solo alle persone con malattia sintomatica, poiché la prognosi della malattia asintomatica non è attualmente ben delineata in letteratura, e per consentire una categorizzazione basata sulle caratteristiche degli episodi sintomatici. Il criterio di ingresso è stato definito come il verificarsi di almeno un episodio di gonfiore, dolore o dolorabilità in un'articolazione periferica o in una borsa sierosa. 
+
+
+1.2. Domini e categorie
+Gli episodi sintomatici sono stati definiti come quelli in cui erano presenti gonfiore, dolore o dolorabilità in un'articolazione periferica o in una borsa sierosa. Per quanto riguarda la distribuzione del coinvolgimento articolare, si è convenuto che un coinvolgimento della prima articolazione metatarso-falangea, della caviglia o del medio piede/mediotarso come parte di una presentazione poliarticolare, sebbene possibile nella gotta, non era sufficientemente specifico per la gotta.
+
+Il decorso temporale degli episodi sintomatici doveva essere considerato indipendentemente dal trattamento antinfiammatorio. Per quanto riguarda i tofi rilevati clinicamente, è stata sviluppata una definizione precisa in termini di aspetto e localizzazione per aiutare la differenziazione da altri noduli sottocutanei che possono essere confusi con i tofi.
+
+L'urato/acido urico sierico è stato considerato un elemento obbligatorio dei criteri di classificazione.
+
+Per il dominio del liquido sinoviale, il liquido deve essere aspirato da un'articolazione o da una borsa sintomatica (sempre) e valutato da un osservatore esperto. Se l'aspirato di liquido sinoviale era positivo per la presenza di cristalli di urato monosodico, l'individuo sarebbe stato classificato come affetto da gotta.
+
+Le modalità di imaging con sufficienti dati pubblicati e l'esperienza degli sperimentatori a sostegno della loro utilità nell'identificare accuratamente il deposito di urato/acido urico sono state l'ecografia e la dual emission computed tomography/DECT. Per l'evidenza ecografica del deposito di urato/acido urico, il reperto richiesto è il segno del doppio contorno (DCS), definito come un aumento irregolare iperecoico sulla superficie della cartilagine ialina, indipendente dall'angolo di insonazione del fascio di ultrasuoni. Per la DECT, il deposito di urato/acido urico è definito come la presenza di urato colorato in siti articolari o periarticolari. Il punteggio di questo dominio di imaging è applicabile solo a un'articolazione o a una borsa sintomatica (sempre). L'evidenza per immagini di un danno articolare correlato alla gotta deve essere valutata sulla base di una radiografia convenzionale delle mani e/o dei piedi che dimostri almeno un'erosione correlata alla gotta, definita come una interruzione della corticale ossea con margine sclerotico e bordo sporgente.
+
+
+
+1.3. Punteggio dei criteri finali
+I criteri possono essere sintetizzati nella seguente lista: almeno un episodio acuto di dolore o tumefazione in un’articolazione o una borsa sierosa, presenza di cristalli di urato monosodico nel liquido sinoviale o in un tofo,coinvolgimento della caviglia o del mediotarso,coinvolgimento della prima articolazione metatarsofalangea,eritema/arrossamento sovrastante l’articolazione,difficoltà alla deambulazione,ipersensibilità con dolore al tocco e alla pressione dell’articolazione coinvolta,evidenza clinica di tofi,incremento dei livelli sierici di acido urico,evidenza all’ecografia o alla DECT di immagini compatibili con depositi di acido urico (tofi, doppio contorno).
+
+Il massimo punteggio possibile nei criteri finali è 23. Un punteggio soglia maggiore o uguale di 8 classifica un individuo come affetto da gotta. Se il liquido sinoviale e' negativo per cristalli di urato monosodico, vengono sottratti 2 punti dal punteggio totale. Allo stesso modo, se il livello di urato/acido urico sierico è minore di 4 mg/dL (minore di 0,24 mmol/L), vengono sottratti 4 punti dal punteggio totale. Questo approccio è stato adottato per sottolineare che questi risultati riducono la probabilità di gotta. Se non viene eseguita la diagnostica per immagini, a queste categorie viene attribuito un punteggio pari a 0.

@@ -1,0 +1,21 @@
+1. Criteri di classificazione dell'artrite psoriasi
+I criteri CASPAR ( Criteri di Classificazione per Artrite Psoriasica) comprendono la presenza di una malattia infiammatoria articolare accertata con almeno 3 punti assegnati dalle seguenti caratteristiche: psoriasi attuale (ha un punteggio assegnato di 2 punti, a tutte le altre caratteristiche è stato assegnato 1 punto), storia pregressa di psoriasi (a meno che non sia presente attualmente psoriasi), anamnesi familiare di psoriasi (a meno che non sia presente psoriasi attuale o storia di psoriasi pregressa), dattilite, osteoapposizione iuxta-articolare, fattore reumatoide negativo e distrofia ungueale.
+
+
+1.1. Risultati
+Tutte le seguenti variabili sono indipendentemente associate all’artrite psoriasica: psoriasi attuale, anamnesi familiare di psoriasi, storia pregressa di psoriasi, risultato negativo al test del fattore reumatoide e osteoapposizione iuxta-articolare visto sulle radiografie.
+In aggiunta a queste variabili identificate dalla regressione logistica come predittive dell’artrite psoriasica, l’analisi CART identifica: distrofia ungueale, storia pregressa di psoriasi( se non vi sono evidenze attuali di psoriasi), evidenza attuale di psoriasi, dattilite, storia pregressa di dattilite (se non vi è evidenza attuale di dattilite), formazione di tessuto osseo iuxta-articolare (tramite radiografia semplice di mani e piedi), storia familiare di psoriasi( se non vi sono evidenze attuali o pregresse di psoriasi) e un risultato negativo al test del fattore reumatoide.
+E’ stato assegnato un peso maggiore alla psoriasi attuale rispetto ad altre possibili caratteristiche di psoriasi.
+
+Per soddisfare i criteri CASPAR (Criteri di Classificazione per Artrite Psoriasica), un paziente deve avere una malattia infiammatoria articolare (articolazione, colonna vertebrale o entesi) con un punteggio maggiore o uguale a 3 punti derivanti dalle seguenti 5 categorie:
+-Evidenza attuale di psoriasi, anamnesi personale di psoriasi o anamnesi familiare di psoriasi. Psoriasi attuale è definita come malattia psoriasica della pelle o del cuoio capelluto presente oggi, secondo il giudizio di un reumatologo o di un dermatologo. Per anamnesi personale di psoriasi si intende un'anamnesi di psoriasi che può essere ottenuta da un medico di famiglia, da un dermatologo, da un reumatologo o altro operatore sanitario qualificato. Per anamnesi familiare di psoriasi si intende un'anamnesi di psoriasi in un parente di primo o secondo grado secondo quanto riferito dal paziente (che include quindi genitori, nonni, zii, fratelli, figli, nipoti)
+-Tipica distrofia ungueale psoriasica, che comprende onicolisi, pitting ungueale e ipercheratosi osservati in un esame obiettivo attuale.
+-Un risultato negativo del fattore reumatoide con qualsiasi metodo, eccetto quello al lattice, ma preferibilmente con un test di immunoassorbimetria o nefelometria, secondo l'intervallo di riferimento del laboratorio locale.
+-Dattilite in corso, definita come gonfiore di un intero dito, oppure storia pregressa di dattilite riportata da un reumatologo.
+-Evidenza radiografica di osteoapposizione iuxta-articolare, che appaia su radiografie della mano o del piede come un'ossificazione mal definita vicino ai margini dell'articolazione (escludendo formazioni osteofitiche).
+I criteri CASPAR hanno specificità pari al 98,7% e sensitività pari al 91,4%.
+All’evidenza attuale di psoriasi è assegnato un punteggio di 2, a tutte le altre caratteristiche è assegnato un punteggio di 1.
+
+1.2. Discussione
+Un punto di forza di questi criteri è che permettono la diagnosi di artrite psoriasica nonostante la positività al fattore reumatoide o l’assenza di psoriasi, fintanto che altri segni tipici dell’artrite psoriasica sono presenti.
+La maggiore limitazione di questo studio è che è stato condotto su soggetti con malattia infiammatoria articolare nota e dunque non è possibile applicare i risultati a soggetti con malattia recentemente insorta.

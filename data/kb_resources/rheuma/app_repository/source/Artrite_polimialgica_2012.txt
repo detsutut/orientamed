@@ -1,0 +1,27 @@
+1. Criteri di classificazione provvisori per la polimialgia reumatica
+L’obiettivo di questo studio è sviluppare criteri classificativi per la polimialgia reumatica. E’ stato formulato un algoritmo di assegnazione di punteggi ai criteri classificativi basato su rigidità mattutina maggiore di 45 minuti, dolore all’anca/ROM(range of motion)  limitato, assenza del fattore reumatoide (RF)  e/o anticorpi anti peptidi ciclici citrullinati (ACPA) e dolore alle articolazioni periferiche. In presenza di rigidità mattutina maggiore di 45 minuti, elevato livello di proteina C-reattiva e/o di velocità di eritrosedimentazione e dolore all’anca, pazienti con età uguale o superiore a 50 anni che presentano dolore alle spalle, non attribuibile a patologie alternative, possono essere classificati come affetti da polimialgia reumatica.
+
+
+1.1. Decisioni consensuali sul disegno dello studio
+I pazienti che presentano una sindrome polimialgica dovrebbero avere una valutazione basata su criteri di esclusione e inclusione. Per verificare la classificazione del paziente come affetto da polimialgia reumatica si può anche utilizzare la risposta alla terapia corticosteroidea (maggiore del 75% della risposta globale entro 1 settimana al prednisone/prednisolone 15-20 mg al giorno).
+La nuova insorgenza di dolore alle spalle è stata considerata come il principale criterio di eleggibilità.
+I criteri sono età superiore ai 50 anni, durata dei sintomi di 2 o più settimane,dolori bilaterali alle spalle e/o al cinto pelvico,recente perdita di peso superiore a 2 kg,durata della rigidità mattutina superiore a 45 minuti, elevata velocità di eritrosedimentazione e risposta alla terapia corticosteroidea maggiore del 75% della risposta globale entro 1 settimana al prednisone/prednisolone 15-20 mg al giorno.
+L’esame obiettivo include la presenza o assenza di dolorabilità, dolore durante il movimento e limitazione di spalle e anche.Sono stati documentati gli aspetti della terapia corticosteroidea, tra cui la dose, la risposta terapeutica, la modifica della dose e l'interruzione della terapia.  
+Sia soggetti affetti da polimialgia reumatica sia non affetti sono stati sottoposti a valutazione tramite ecografia delle spalle e delle anche alla valutazione basale e a 26 settimane. L’esame è stato condotto per accertare la presenza di caratteristiche precedentemente riportate  come associate alla polimialgia reumatica, ossia tenosivite del tendine del capo lungo del bicipite,borsite subacromiale e subdeltoidea, borsite trocanterica e versamento gleno-omerale e dell’anca.
+
+1.2. Sviluppo di un algoritmo di assegnazione dei punteggi
+Sono sufficienti quattro fattori per rappresentare tutti i criteri, che sono: dolore/dolorabilità alle anche, sinovite periferica o dolore alle articolazioni periferiche (quale criterio che riduce la probabilità), rigidità mattutina e dolorabilità delle spalle.
+L’algoritmo di assegnazione dei punteggi ai criteri di classificazione per polimialgia reumatica è il seguente:
+-Rigidità mattutina con durata maggiore di 45 minuti 
+-Dolore all’anca e limitato range di movimento
+-Assenza di fattore reumatoide o anticorpi anti peptidi ciclici citrullinati
+-Assenza di coinvolgimento di altre sedi articolari 
+-Almeno una spalla con borsite subdeltoidea e/o tenosivite del tendine del capo lungo del bicipite e/o sinovite gleno-omerale (nei recessi posteriore e/o ascellare) e almeno un’anca con sinovite e/o borsite trocanterica.
+-Entrambe le spalle con borsite subdeltoidea, tenosivite del capo lungo del bicipite o sinovite gleno-omerale.
+
+Criteri richiesti necessari per l’applicazione dei criteri classificativi:  età uguale o maggiore a 50 anni, dolore alle spalle ed elevazione del livello di proteina C-reattiva e/o della velocità di eritrosedimentazione (VES). 
+
+1.3. Discussione
+La popolazione target è di pazienti con un’età pari o superiore a 50 anni che presentano un dolore bilaterale alla spalla di recente insorgenza (<12 settimane) e una risposta anomala alla fase acuta.I criteri possono essere applicati solo a quei pazienti in cui i sintomi non sono meglio spiegati da una diagnosi alternativa. Le condizioni mimetiche includono le condizioni infiammatorie e non infiammatorie studiate come comparatori in questo rapporto.
+Quattro criteri clinici e di laboratorio, insieme ad altri criteri opzionali, possono essere applicati per identificare pazienti affetti da polimialgia reumatica adatti per terapia corticosteroidea a bassa dose. La scala di punteggio è 0-6 (senza ecografia muscoloscheletrica) e 0-8 (con ecografia muscoloscheletrica). In assenza di altre diagnosi concomitanti, un punteggio di 4 o maggiore (senza ecografia muscoloscheletrica) o di 5 o maggiore (con ecografia muscoloscheletrica) è indicativo di polimialgia reumatica. Pazienti con punteggi inferiori non possono essere considerati affetti. 
+In conclusione pazienti con età uguale o superiore ai 50 anni che presentano dolore alle spalle e livelli elevati di proteina C-reattiva e/o di velocità di eritrosedimentazione (VES) possono essere classificati come affetti da polimialgia reumatica in presenza di rigidità mattutina per più di 45 minuti e dolore alle anche in assenza di sinovite periferica e di test sierologico positivo al fattore reumatoide.

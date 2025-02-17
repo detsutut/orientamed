@@ -1,0 +1,8 @@
+1. Definizione EULAR dell'artralgia sospetta per progressione verso l'artrite reumatoide
+Durante la transizione verso l'artrite reumatoide (AR) molti pazienti attraversano una fase caratterizzata dalla presenza di sintomi senza presentare sinovite clinicamente evidente. Questi sintomi non sono ben caratterizzati.
+Questo studio si propone di definire le caratteristiche cliniche dei pazienti con artralgia che sono considerati a rischio di AR.
+Un modello multivariato basato sui dati ha identificato sette parametri rilevanti per caratterizzare pazienti con artralgia a rischio di artrite reumatoide: durata dei sintomi <1 anno, sintomi delle articolazioni metacarpo-falangee (MCF),durata della rigidità mattutina ≥60 min, sintomi più gravi al mattino presto, parente di primo grado con RA, difficoltà a stringere il pugno e squeeze test/test della gronda positivo delle articolazioni MCF.
+
+1.1. Introduzione
+Lo sviluppo dell'artrite reumatoide (AR) è un processo a più fasi: (1) presenza di fattori di rischio genetici e ambientali per l'AR, (2) autoimmunità sistemica associata alla AR, (3) sintomi senza artrite clinica, (4) artrite indifferenziata e infine (5) AR. I pazienti con artralgia clinicamente sospetta (CSA) presentano sintomi articolari senza segni clinici di artrite e sono considerati a maggior rischio di progressione verso l'AR. 
+L'artralgia clinicamente sospetta (CSA) non è di per sé una malattia, ma una combinazione di sintomi e segni. È stato previsto che le caratteristiche cliniche da sole non sono sufficientemente predittive di AR, che una combinazione di fattori clinici e altri fattori (esempio autoanticorpi, risultati di imaging) sono necessari per identificare i pazienti con AR imminente.
