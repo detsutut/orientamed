@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.env
+*/*.env
 
 # Pycharm junk
 .DS_Store

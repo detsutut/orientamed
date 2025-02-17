@@ -28,8 +28,9 @@ def token_auth(username: str, password: str):
         return gradio_init(str(password))
     # OTHER USER LOGIN
     else:
-        return username == dotenv_values(GRADIO_SECRETS).get("GRADIO_TESTUSR") and password == dotenv_values(
-            GRADIO_SECRETS).get("GRADIO_TESTPWD")
+        check_user = username == dotenv_values(GRADIO_SECRETS).get("GRADIO_TESTUSR")
+        check_password = password == dotenv_values(GRADIO_SECRETS).get("GRADIO_TESTPWD")
+        return check_user and check_password
 
 
 def rag_init(mfa_token: str, model_id="") -> Rag | None:
@@ -67,11 +68,6 @@ def gradio_init(mfa_token, model_id=""):
         return False
 
 
-def gradio_init_upload(mfa_token, model_id):
-    admin_flag = gradio_init(mfa_token, model_id)
-    return admin_flag, gr.UploadButton(file_count="single", interactive=admin_flag)
-
-
 def upload_file(filepath: str):
     rag.retriever.upload_file(filepath)
 
@@ -94,29 +90,28 @@ def update_state(request: gr.Request):
     return request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR")
 
 
-def toggle_interactivity(is_admin, *components):
+def toggle_interactivity(is_admin):
     print("updating functionalities")
     print(is_admin)
-    print(components)
     """Update the 'interactive' property for all given components."""
-    return [comp.update(interactive=is_admin) for comp in components]
+    return gr.UploadButton(file_count="single", interactive=is_admin)
+
+custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
+a = gr.Checkbox(label="Usa Knowledge Base", value=True)
+b = gr.Checkbox(label="Usa Query Augmentation", value=False)
+c = gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili")
+
+#gr.set_static_paths(paths=["./"])
 
 
-with gr.Blocks(theme="earneleh/paris") as demo:
-    gr.Markdown("<center><h1>Assistente Reuma Triage Demo</h1></center>")
+with gr.Blocks(title="OrientaMed", theme=custom_theme) as demo:
+    gr.Markdown(f"<center><h1><img src='gradio_api/file={config.get('gradio').get('logo-img')}' style='height:1.2em; display:inline-block;'> OrientaMed - Demo</h1></center>")
     admin_state = gr.State(False)
-    demo.load(update_state, None, admin_state)
     with gr.Tab("Chat"):
         history = [{"role": "assistant", "content": random.choice(config.get('gradio').get('greeting-messages'))}]
-        chatbot = gr.Chatbot(history, type="messages", show_copy_button=True,
-                             avatar_images=(None, config.get("avatar-img")))
-        with gr.Row():
-            with gr.Column(scale=1):
-                toggle_rag = gr.Checkbox(label="Usa Knowledge Base", value=True)
-                query_aug = gr.Checkbox(label="Usa Query Augmentation", value=False)
-            with gr.Column(scale=1):
-                additional_context = gr.Textbox(label="Altre Info",
-                                                placeholder="Inserisci qui altre informazioni utili")
+        chatbot = gr.Chatbot(history, type="messages", show_copy_button=True, layout="panel",
+                             avatar_images=(None, config.get('gradio').get("avatar-img")))
+
         gr.ChatInterface(fn=reply, type="messages",
                          chatbot=chatbot,
                          flagging_mode="manual",
@@ -124,7 +119,9 @@ with gr.Blocks(theme="earneleh/paris") as demo:
                          flagging_dir=config.get('working-dir'),
                          save_history=True,
                          examples=[[e] for e in config.get('gradio').get('examples')],
-                         additional_inputs=[toggle_rag, additional_context, query_aug])
+                         additional_inputs=[a,b,c],
+                         additional_inputs_accordion="Opzioni",)
+
     with gr.Tab("Settings"):
         with gr.Group():
             gr.FileExplorer(label="Knowledge Base",
@@ -136,7 +133,9 @@ with gr.Blocks(theme="earneleh/paris") as demo:
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456")
             model_input = gr.Textbox(label="Bedrock Model ID", placeholder="")
             btn = gr.Button("Confirm")
+    gr.Markdown("<br><div style='display:flex; justify-content:center; align-items:center'><img src='https://unipv.coursecatalogue.cineca.it/assets/img/unipv/logo.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/dheal.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/bmi.png' style='width:7%; min-width : 100px;'></div>")
     upload_button.upload(upload_file, upload_button, None)
-    btn.click(fn=gradio_init_upload, inputs=[mfa_input, model_input], outputs=[admin_state, upload_button])
-    admin_state.change(toggle_interactivity, inputs=[admin_state, upload_button], outputs=[upload_button])
-demo.launch(share=False, auth=token_auth, pwa=True)
+    btn.click(fn=gradio_init, inputs=[mfa_input, model_input], outputs=admin_state)
+    admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
+    demo.load(update_state, inputs=None, outputs=admin_state)
+demo.launch(share=False, pwa=True, favicon_path=config.get('gradio').get('logo-img'), allowed_paths=['./assets'], auth=token_auth)

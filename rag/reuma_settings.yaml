@@ -1,6 +1,5 @@
-working-dir: '/Users/detsutut/Repositories/dheal-com-rag-demo/rag/'
+working-dir: '/mnt/a50bb6a7-0792-4ae6-9327-0fe54f687d1a/dheal-com-rag-demo/rag'
 vector-db-path: './data/reuma.db'
-avatar-img: './assets/dot.gif'
 kb-folder: './data/reuma'
 chunk-size: 500
 chunk-overlap: 100
@@ -9,6 +8,9 @@ globs:
   - '**/*.pdf'
 gradio:
   secrets-path: './gradio_secrets.env'
+  avatar-img: './assets/dot.gif'
+  background-img: './assets/background.jpg'
+  logo-img: './assets/procedure.png'
   flagging-options:
     - "Errato"
     - "Incompleto"
