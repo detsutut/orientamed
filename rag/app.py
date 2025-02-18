@@ -3,7 +3,7 @@ from bedrock_inference.bedrock import aws_login_mfa
 from gradio import ChatMessage
 import os
 import logging
-from rags import Rag, rag_prompts
+from modules.rags import Rag, rag_prompts
 from dotenv import dotenv_values
 import yaml
 import random
@@ -138,4 +138,8 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme) as demo:
     btn.click(fn=gradio_init, inputs=[mfa_input, model_input], outputs=admin_state)
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
     demo.load(update_state, inputs=None, outputs=admin_state)
-demo.launch(share=False, pwa=True, favicon_path=config.get('gradio').get('logo-img'), allowed_paths=['./assets'], auth=token_auth)
+demo.launch(server_name="0.0.0.0",
+            auth=token_auth,
+            pwa=True,
+            favicon_path=config.get('gradio').get('logo-img'),
+            allowed_paths=['./assets'])

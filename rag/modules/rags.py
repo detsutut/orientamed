@@ -1,6 +1,5 @@
 from typing import Any
 
-from bedrock_inference.bedrock import aws_login_mfa
 from boto3 import Session
 from langchain_aws import BedrockLLM, BedrockEmbeddings, InMemoryVectorStore
 from langchain_core.prompts import ChatPromptTemplate
