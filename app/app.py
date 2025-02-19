@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 with open(args.settings_file) as stream:
     config = yaml.safe_load(stream)
 
-os.chdir(config.get("working-dir"))
+wd = os.path.abspath(os.path.dirname(args.settings_file))
+os.chdir(wd)
+
 
 AWS_SECRETS = config.get("bedrock").get("secrets-path")
 GRADIO_SECRETS = config.get("gradio").get("secrets-path")

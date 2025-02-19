@@ -1,4 +1,3 @@
-working-dir: '.'
 vector-db-path: './data/reuma.db'
 kb-folder: './data/reuma'
 chunk-size: 500
