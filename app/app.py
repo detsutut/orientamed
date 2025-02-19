@@ -134,7 +134,7 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme) as demo:
                          chatbot=chatbot,
                          flagging_mode="manual",
                          flagging_options=config.get('gradio').get('flagging_options'),
-                         flagging_dir=config.get('working-dir'),
+                         flagging_dir="./",
                          save_history=True,
                          examples=[[e] for e in config.get('gradio').get('examples')],
                          additional_inputs=[a,b,c],
