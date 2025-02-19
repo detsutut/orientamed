@@ -8,8 +8,7 @@ globs:
 gradio:
   secrets-path: './gradio_secrets.env'
   avatar-img: './assets/dot.gif'
-  background-img: './assets/background.jpg'
-  logo-img: './assets/procedure.png'
+  logo-img: './assets/a.png'
   flagging-options:
     - "Errato"
     - "Incompleto"
