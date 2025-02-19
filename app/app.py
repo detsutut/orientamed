@@ -8,10 +8,18 @@ from dotenv import dotenv_values
 import yaml
 import random
 
+import argparse
+
+# Define the parser
+parser = argparse.ArgumentParser()
+parser.add_argument('--settings', action="store", dest='settings_file', default='settings.yaml')
+args = parser.parse_args()
+
+
 # GLOBAL VARIABLES: SHARED BETWEEN USERS AND SESSIONS
 logger = logging.getLogger(__name__)
 
-with open("./reuma_settings.yaml") as stream:
+with open(args.settings_file) as stream:
     config = yaml.safe_load(stream)
 
 os.chdir(config.get("working-dir"))
