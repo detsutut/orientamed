@@ -1,4 +1,4 @@
-working-dir: '/mnt/a50bb6a7-0792-4ae6-9327-0fe54f687d1a/dheal-com-rag-demo/rag'
+working-dir: '.'
 vector-db-path: './data/reuma.db'
 kb-folder: './data/reuma'
 chunk-size: 500

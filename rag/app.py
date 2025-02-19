@@ -3,7 +3,7 @@ from bedrock_inference.bedrock import aws_login_mfa
 from gradio import ChatMessage
 import os
 import logging
-from modules.rags import Rag, rag_prompts
+from rags import Rag, rag_prompts
 from dotenv import dotenv_values
 import yaml
 import random
@@ -73,17 +73,25 @@ def upload_file(filepath: str):
 
 
 def reply(message, history, enable_rag, additional_context, query_aug):
-    if enable_rag:
-        response = rag.invoke({"question": message, "additional_context": additional_context, "query_aug": query_aug})
-        answer = response["answer"]
-        sources = list(set([os.path.basename(context.metadata.get("source", "")) for context in response["context"]]))
-        return [ChatMessage(role="assistant", content=answer),
-                ChatMessage(role="assistant", content="[" + ", ".join(sources) + "]",
-                            metadata={"title": "📖 Sorgenti Utilizzate"})]
+    if rag is None:
+        logger.error("LLM not configured")
+        gr.Error("Error: LLM not configured")
     else:
-        messages = rag_prompts.norag.invoke({"question": message})
-        answer = rag.llm.generate(messages)
-        return ChatMessage(role="assistant", content=answer)
+        try:
+            if enable_rag:
+                response = rag.invoke({"question": message, "additional_context": additional_context, "query_aug": query_aug})
+                answer = response["answer"]
+                sources = list(set([os.path.basename(context.metadata.get("source", "")) for context in response["context"]]))
+                return [ChatMessage(role="assistant", content=answer),
+                        ChatMessage(role="assistant", content="[" + ", ".join(sources) + "]",
+                                    metadata={"title": "📖 Sorgenti Utilizzate"})]
+            else:
+                messages = rag_prompts.norag.invoke({"question": message})
+                answer = rag.llm.generate(messages)
+                return ChatMessage(role="assistant", content=answer)
+        except Exception as e:
+            logger.error(str(e))
+            gr.Error("Error: " + str(e))
 
 
 def update_state(request: gr.Request):
