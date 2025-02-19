@@ -141,7 +141,7 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme) as demo:
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456")
             model_input = gr.Textbox(label="Bedrock Model ID", placeholder="")
             btn = gr.Button("Confirm")
-    gr.Markdown("<br><div style='display:flex; justify-content:center; align-items:center'><img src='https://unipv.coursecatalogue.cineca.it/assets/img/unipv/logo.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/dheal.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/bmi.png' style='width:7%; min-width : 100px;'></div>")
+    gr.Markdown("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/unipv.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/dheal.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/bmi.png' style='width:7%; min-width : 100px;'></div>")
     upload_button.upload(upload_file, upload_button, None)
     btn.click(fn=gradio_init, inputs=[mfa_input, model_input], outputs=admin_state)
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
