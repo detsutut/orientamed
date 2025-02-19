@@ -9,7 +9,7 @@
 
 <br />
 <div align="center">
-  <h2><img src="app/assets/procedure.png" style='height:1.2em; display:inline-block;'/> OrientaMed</h2>
+  <h2><img src="app/assets/procedure.png" style='height:2em;'/><br>OrientaMed</h2>
   <h3 align="center">Sistema conversazionale basato su LLMs e RAG per assistenza al triage</h3>
   
   [![Status][status-shield]][status-url]
@@ -22,7 +22,7 @@
   </p>
 </div>
 
-<div style='display:flex; justify-content:center; align-items:center'><img src='app/assets/unipv.png' style='width:7%; min-width : 100px;'><img src='app/assets/dheal.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='app/assets/bmi.png' style='width:7%; min-width : 100px;'></div>
+<div align="center"><img src='app/assets/unipv.png' style='height:5em; min-width : 100px;'><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><img src='app/assets/dheal.png' style='height:5em; padding-left:1%; padding-right:1%; min-width : 100px;'><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><img src='app/assets/bmi.png' style='height:5em; min-width : 100px;'></div>
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -89,7 +89,7 @@ Distributed under MIT License. See `LICENSE` for more information.
 <!-- MARKDOWN LINKS -->
 [contributors-shield]: https://img.shields.io/github/contributors/detsutut/dheal-com-rag-demo.svg?style=for-the-badge
 [contributors-url]: https://github.com/detsutut/dheal-com-rag-demo/graphs/contributors
-[status-shield]: https://img.shields.io/badge/Status-pre--release-blue
+[status-shield]: https://img.shields.io/badge/Status-pre--alpha-blue
 [status-url]: https://github.com/detsutut/dheal-com-rag-demo/releases
 [version-shield]: https://img.shields.io/github/v/release/dheal-com-rag-demo/dheal-com-rag-demo?include_prereleases
 [version-url]: https://github.com/detsutut/dheal-com-rag-demo/releases
