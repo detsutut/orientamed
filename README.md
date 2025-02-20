@@ -104,7 +104,7 @@ Distributed under MIT License. See `LICENSE` for more information.
 [contributors-url]: https://github.com/detsutut/dheal-com-rag-demo/graphs/contributors
 [status-shield]: https://img.shields.io/badge/Status-pre--alpha-blue
 [status-url]: https://github.com/detsutut/dheal-com-rag-demo/releases
-[version-shield]: https://img.shields.io/github/v/release/dheal-com-rag-demo/dheal-com-rag-demo?include_prereleases
+[version-shield]: https://img.shields.io/github/v/release/detsutut/dheal-com-rag-demo?include_prereleases
 [version-url]: https://github.com/detsutut/dheal-com-rag-demo/releases
 [forks-shield]: https://img.shields.io/github/forks/detsutut/dheal-com-rag-demo.svg?style=for-the-badge
 [forks-url]: https://github.com/detsutut/dheal-com-rag-demo/network/members
