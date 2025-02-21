@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.env
 */*.env
+app/log.csv
 
 # Pycharm junk
 .DS_Store
