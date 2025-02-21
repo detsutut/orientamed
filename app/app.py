@@ -130,9 +130,9 @@ def toggle_interactivity(is_admin):
     return gr.UploadButton(file_count="single", interactive=is_admin)
 
 custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
-a = gr.Checkbox(label="Usa Knowledge Base", value=True)
-b = gr.Checkbox(label="Usa Query Augmentation", value=False)
-c = gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili")
+kb_use = gr.Checkbox(label="Usa Knowledge Base", value=True)
+query_aug = gr.Checkbox(label="Usa Query Augmentation", value=False, interactive=False)
+add_info = gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili")
 
 
 with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden}") as demo:
@@ -150,7 +150,7 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
                          flagging_dir="./",
                          save_history=True,
                          examples=[[e] for e in config.get('gradio').get('examples')],
-                         additional_inputs=[a,b,c],
+                         additional_inputs=[kb_use,query_aug,add_info],
                          additional_inputs_accordion="Opzioni",)
 
     with gr.Tab("Settings"):
