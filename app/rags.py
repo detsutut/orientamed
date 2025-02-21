@@ -58,21 +58,21 @@ class Rag:
         self.graph = graph_builder.compile()
 
     def retrieve(self, state: State):
-        logger.info(f"New retrieval: {state}")
+        logger.debug(f"New retrieval: {state}")
         retrieved_docs = self.retriever.retrieve(state["question"])
-        logger.info(f"Retrieved docs: {retrieved_docs}")
+        logger.debug(f"Retrieved docs: {retrieved_docs}")
         return {"context": retrieved_docs}
 
     def generate(self, state: State):
         question = state["question"]
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
         extra_context = state.get("additional_context", None)
-        logger.info(f"New query: {state}")
+        logger.debug(f"New query: {state}")
         if state["query_aug"]:
-            logger.info(f"Expanding query...")
+            logger.debug(f"Expanding query...")
             messages = rag_prompts.query_expansion.invoke({"question": state["question"]})
             question = self.llm.generate(prompt=messages)
-            logger.info(f"Expanded query: {textwrap.shorten(question, width=30)}")
+            logger.debug(f"Expanded query: {textwrap.shorten(question, width=30)}")
         if extra_context is not None and extra_context != "":
             messages = rag_prompts.rag_addcontext.invoke(
                 {"question": question, "context": docs_content, "additional_context": extra_context})

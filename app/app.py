@@ -7,6 +7,7 @@ from rags import Rag, rag_prompts
 from dotenv import dotenv_values
 import yaml
 import random
+from boto3 import Session
 
 import argparse
 
@@ -29,13 +30,34 @@ os.chdir(wd)
 AWS_SECRETS = config.get("bedrock").get("secrets-path")
 GRADIO_SECRETS = config.get("gradio").get("secrets-path")
 
-rag = None
+logger.info("Initializing RAG...")
+rag = Rag(session=Session(),
+          model=config.get("bedrock").get("model-id"),
+          embedder=config.get("bedrock").get("embedder-id"),
+          vector_store=config.get("vector-db-path"),
+          region=config.get("bedrock").get("region"))
+
+
+def start_mfa_session(mfa_token, duration: int = 60):
+    logger.info("Checking MFA token...")
+    try:
+        session = aws_login_mfa(arn=dotenv_values(AWS_SECRETS).get("AWS_ARN_MFA_DEVICE"),
+                                aws_access_key_id=dotenv_values(AWS_SECRETS).get("AWS_ACCESS_KEY_ID"),
+                                aws_secret_access_key=dotenv_values(AWS_SECRETS).get("AWS_SECRET_ACCESS_KEY"),
+                                token=mfa_token,
+                                duration=duration)
+        return session
+    except Exception as e:
+        logger.error(str(e))
+        return None
 
 
 def token_auth(username: str, password: str):
+    logger.info(f"Login attempt from user '{username}'")
     # ADMIN LOGIN
     if username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR") and len(password) == 6:
-        return gradio_init(str(password))
+        session = start_mfa_session(str(password))
+        return type(session) == Session
     # OTHER USER LOGIN
     else:
         check_user = username == dotenv_values(GRADIO_SECRETS).get("GRADIO_TESTUSR")
@@ -43,38 +65,25 @@ def token_auth(username: str, password: str):
         return check_user and check_password
 
 
-def rag_init(mfa_token: str, model_id="") -> Rag | None:
-    logger.info("Logging in AWS...")
-    if model_id == "":
-        model_id = config.get("bedrock").get("model-id")
-    try:
-        session = aws_login_mfa(arn=dotenv_values(AWS_SECRETS).get("AWS_ARN_MFA_DEVICE"),
-                                aws_access_key_id=dotenv_values(AWS_SECRETS).get("AWS_ACCESS_KEY_ID"),
-                                aws_secret_access_key=dotenv_values(AWS_SECRETS).get("AWS_SECRET_ACCESS_KEY"),
-                                token=mfa_token,
-                                duration=18000)
-        rag_attempt = Rag(session=session,
-                          model=model_id,
-                          embedder=config.get("bedrock").get("embedder-id"),
-                          vector_store=config.get("vector-db-path"),
-                          region=config.get("bedrock").get("region"))
-    except Exception as e:
-        logger.error("Login failed")
-        logger.error(str(e))
-        return None
-    logger.info("Login successful")
-    return rag_attempt
-
-
-def gradio_init(mfa_token, model_id=""):
-    global rag
-    r = rag_init(mfa_token, model_id)
-    if r is not None:
-        rag = r
-        gr.Info("Login successful")
+def update_rag(mfa_token, model_id=""):
+    session = start_mfa_session(str(mfa_token))
+    if type(session) == Session:
+        if model_id!="":
+            logger.info("Trying to update rag...")
+            global rag
+            try:
+                rag_attempt = Rag(session=Session(),
+                                model=model_id,
+                                embedder=config.get("bedrock").get("embedder-id"),
+                                vector_store=config.get("vector-db-path"),
+                                region=config.get("bedrock").get("region"))
+            except Exception as e:
+                logger.error("update failed")
+                logger.error(str(e))
+            rag = rag_attempt
+            logger.info("Rag updated")
         return True
     else:
-        gr.Error("Login failed")
         return False
 
 
@@ -104,14 +113,20 @@ def reply(message, history, enable_rag, additional_context, query_aug):
             gr.Error("Error: " + str(e))
 
 
-def update_state(request: gr.Request):
+def onload(request: gr.Request):
+    logging_info = {
+        "username":request.username,
+        "ip":request.client.host,
+        "headers":request.headers,
+        "session_hash":request.session_hash,
+        "query_params":dict(request.query_params)
+    }
+    logger.info(f"Login details: {logging_info}")
     return request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR")
 
 
 def toggle_interactivity(is_admin):
-    print("updating functionalities")
-    print(is_admin)
-    """Update the 'interactive' property for all given components."""
+    logger.info("Updating admin functionalities")
     return gr.UploadButton(file_count="single", interactive=is_admin)
 
 custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
@@ -151,9 +166,9 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
             btn = gr.Button("Confirm")
     gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div>")
     upload_button.upload(upload_file, upload_button, None)
-    btn.click(fn=gradio_init, inputs=[mfa_input, model_input], outputs=admin_state)
+    btn.click(fn=update_rag, inputs=[mfa_input, model_input], outputs=admin_state)
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
-    demo.load(update_state, inputs=None, outputs=admin_state)
+    demo.load(onload, inputs=None, outputs=admin_state)
 demo.launch(server_name="0.0.0.0",
             auth=token_auth,
             pwa=True,
