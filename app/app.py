@@ -131,7 +131,7 @@ def toggle_interactivity(is_admin):
 
 custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
 kb_use = gr.Checkbox(label="Usa Knowledge Base", value=True)
-query_aug = gr.Checkbox(label="Usa Query Augmentation", value=False, interactive=False)
+query_aug = gr.Checkbox(label="Usa Query Augmentation", value=False)
 add_info = gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili")
 
 
