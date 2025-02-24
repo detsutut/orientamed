@@ -98,7 +98,10 @@ def reply(message, history, enable_rag, additional_context, query_aug):
     else:
         try:
             if enable_rag:
-                response = rag.invoke({"question": message, "additional_context": additional_context, "query_aug": query_aug})
+                response = rag.invoke({"question": message,
+                                       "history": history,
+                                       "additional_context": additional_context,
+                                       "query_aug": query_aug})
                 answer = response["answer"]
                 sources = list(set([os.path.basename(context.metadata.get("source", "")) for context in response["context"]]))
                 return [ChatMessage(role="assistant", content=answer),
