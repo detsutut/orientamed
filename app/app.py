@@ -14,6 +14,8 @@ import argparse
 # Define the parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--settings', action="store", dest='settings_file', default='settings.yaml')
+parser.add_argument('--sslcert', action="store", dest='ssl_certfile', default=None)
+parser.add_argument('--sslkey', action="store", dest='ssl_keyfile', default=None)
 args = parser.parse_args()
 
 
@@ -170,7 +172,11 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
     demo.load(onload, inputs=None, outputs=admin_state)
 demo.launch(server_name="0.0.0.0",
+            server_port=7860,
             auth=token_auth,
+            ssl_keyfile = args.ssl_keyfile,
+            ssl_certfile = args.ssl_certfile,
+            ssl_verify = False,
             pwa=True,
             favicon_path=config.get('gradio').get('logo-img'),
             allowed_paths=['./assets'])
