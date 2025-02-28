@@ -163,7 +163,7 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
                                      additional_inputs=[gr.Checkbox(label="Usa Knowledge Base", value=True, render=False),
                                                         gr.Checkbox(label="Usa Query Augmentation", value=False, render=False),
                                                         gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili", render=False)],
-                                     additional_inputs_accordion=gr.Accordion("Opzioni",open=False),
+                                     additional_inputs_accordion="Opzioni",
                                      )
 
         # Workaround to take into account username and ip address in logs
