@@ -10,8 +10,10 @@ gradio:
   avatar-img: './assets/dot.gif'
   logo-img: './assets/a.png'
   flagging-options:
-    - "Errato"
-    - "Incompleto"
+    - "Contenuto errato"
+    - "Contenuto incompleto"
+    - "Contenuto non informativo"
+    - "Contenuto ambiguo"
     - "Altro"
   greeting-messages:
     - "Sono un assistente per il triage reumatico. Come posso aiutarti?"
