@@ -14,7 +14,8 @@ from boto3 import Session
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import textwrap
 import re
-
+import io
+from PIL import Image
 import argparse
 
 # Define the parser
@@ -75,16 +76,14 @@ def token_auth(username: str, password: str):
         return check_user and check_password
 
 
-def update_rag(mfa_token, model_id=""):
+def update_rag(mfa_token):
     global rag
     session = start_mfa_session(str(mfa_token))
     if type(session) is Session:
-        if model_id=="":
-            model_id = config.get("bedrock").get("models").get("model-id")
         logger.info("Trying to update rag...")
         try:
             rag_attempt = Rag(session=session,
-                            model=model_id,
+                            model=config.get("bedrock").get("models").get("model-id"),
                             embedder=config.get("bedrock").get("embedder-id"),
                             vector_store=config.get("vector-db-path"),
                             region=config.get("bedrock").get("region"),
@@ -95,9 +94,9 @@ def update_rag(mfa_token, model_id=""):
             logger.error(str(e))
         rag = rag_attempt
         logger.info("Rag updated")
-        return True
+        return True, ""
     else:
-        return False
+        return False, ""
 
 
 def upload_file(filepath: str):
@@ -207,11 +206,12 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
             upload_button = gr.UploadButton(file_count="single", interactive=admin_state.value)
         with gr.Group():
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456")
-            model_input = gr.Textbox(label="Bedrock Model ID", placeholder="")
             btn = gr.Button("Confirm")
+        gr.Image(label="Workflow schema",value=Image.open(io.BytesIO(rag.get_image())))
     gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div>", elem_id="footer")
     upload_button.upload(upload_file, upload_button, None)
-    btn.click(fn=update_rag, inputs=[mfa_input, model_input], outputs=admin_state)
+    mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
+    btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
     demo.load(onload, inputs=None, outputs=admin_state)
 demo.launch(server_name="0.0.0.0",
