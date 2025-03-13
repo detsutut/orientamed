@@ -106,6 +106,14 @@ def from_list_to_messages(chat:list[dict]):
     template = ChatPromptTemplate([MessagesPlaceholder("history")]).invoke({"history":[(message["role"],message["content"]) for message in chat]})
     return template.to_messages()
 
+
+def dot_progress_bar(score, total_dots=7):
+    filled_count = round(score * total_dots)
+    empty_count = total_dots - filled_count
+    filled = "•" * filled_count
+    empty = "·" * empty_count
+    return f"{filled}{empty} {round(score*100,2)}%"
+
 def reply(message, history, enable_rag, additional_context, query_aug, request: gr.Request):
     if rag is None:
         logger.error("LLM not configured")
@@ -121,10 +129,12 @@ def reply(message, history, enable_rag, additional_context, query_aug, request: 
                 answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
                 citations = {}
                 citations_str = ""
-                for i, document in enumerate(response["context"]):
+                retrieved_documents = response["context"]["docs"]
+                retrieved_scores = response["context"]["scores"]
+                for i, document in enumerate(retrieved_documents):
                     source = os.path.basename(document.metadata.get("source", ""))
                     content = document.page_content
-                    doc_string = f"[{i}] **{source}** - *\"{textwrap.shorten(content,500)}\"*"
+                    doc_string = f"[{i}] **{source}** - *\"{textwrap.shorten(content,500)}\"* (Confidenza: {dot_progress_bar(retrieved_scores[i])})"
                     citations.update({i: {"source":source, "content":content}})
                     citations_str += ("- "+doc_string+"\n")
                 return [gr.ChatMessage(role="assistant", content=answer),

@@ -1,4 +1,6 @@
 import logging
+from typing import List, Tuple
+
 from langchain_aws import BedrockEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_community.document_loaders import DirectoryLoader
@@ -59,5 +61,13 @@ class Retriever:
     def embed(self, query: str):
         return self.embeddings.embed_query(query)
 
-    def retrieve(self, query:str):
-        return self.vector_store.similarity_search(query)
+    def retrieve(self, query:str, n=5) -> List[Document]:
+        return self.vector_store.similarity_search(query, k=n)
+
+    #Maximal marginal relevance optimizes for similarity to query and diversity among selected documents.
+    def retrieve_diverse(self, query: str, n=10) -> List[Document]:
+        return self.vector_store.max_marginal_relevance_search(query, k=n, fetch_k=n*10)
+
+    def retrive_with_scores(self, query:str, n=5, score_threshold=0.5) -> List[Tuple[Document, float]]:
+        docs_retrieved = [doc for doc in self.vector_store.similarity_search_with_score(query, k=n) if doc[1]>=score_threshold]
+        return [doc[0] for doc in docs_retrieved], [doc[1] for doc in docs_retrieved]

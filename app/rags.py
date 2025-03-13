@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, Tuple
 
 from boto3 import Session
 from langchain_aws import BedrockLLM, BedrockEmbeddings, InMemoryVectorStore, ChatBedrockConverse
@@ -48,7 +48,7 @@ class Prompts:
 class State(TypedDict):
     question: str
     history: List[BaseMessage]
-    context: List[Document]
+    context: dict
     additional_context: str = ""
     query_aug: bool
     answer: str
@@ -87,17 +87,17 @@ class Rag:
 
     def doc_retriever(self, state: State) -> Command[Literal["generator", END]]:
         logger.info(f"New retrieval: {state}")
-        retrieved_docs = self.retriever.retrieve(state["question"])
+        retrieved_docs, scores = self.retriever.retrive_with_scores(state["question"], n=10, score_threshold=0.6)
         logger.info(f"Retrieved docs: {retrieved_docs}")
         if len(retrieved_docs) == 0:
             return Command(
-                update={"context": retrieved_docs,
+                update={"context": {"docs":retrieved_docs,"scores":scores},
                         "answer": self.NORETRIEVE_MSG},
                 goto= END,
             )
         else:
             return Command(
-                update= {"context": retrieved_docs},
+                update= {"context": {"docs":retrieved_docs,"scores":scores}},
                 goto="generator",
             )
 
@@ -132,7 +132,7 @@ class Rag:
 
     def generator(self, state: State) -> Command[Literal[END]]:
         doc_strings=[]
-        for i,doc in enumerate(state["context"]):
+        for i,doc in enumerate(state["context"]["docs"]):
             doc_strings.append(f"Source {i}:\n{doc.page_content}")
         docs_content = "\n".join(doc_strings)
         additional_context = state.get("additional_context", None)
