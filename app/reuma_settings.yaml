@@ -28,4 +28,8 @@ bedrock:
   secrets-path: './aws_secrets.env'
   region: 'eu-west-1'
   embedder-id: 'cohere.embed-multilingual-v3'
-  model-id: 'mistral.mixtral-8x7b-instruct-v0:1'
+  models:
+    pro-model-id: 'eu.anthropic.claude-3-5-sonnet-20240620-v1:0' #anthropic.claude-3-5-sonnet-20240620-v1:0
+    model-id: 'mistral.mixtral-8x7b-instruct-v0:1' #mistral.mixtral-8x7b-instruct-v0:1
+    low-model-id: 'mistral.mixtral-8x7b-instruct-v0:1' #meta.llama3-1-8b-instruct-v1:0
+    ultra-low-model-id: 'mistral.mixtral-8x7b-instruct-v0:1'

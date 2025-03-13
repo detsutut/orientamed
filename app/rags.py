@@ -1,7 +1,7 @@
 from typing import Any, Literal
 
 from boto3 import Session
-from langchain_aws import BedrockLLM, BedrockEmbeddings, InMemoryVectorStore
+from langchain_aws import BedrockLLM, BedrockEmbeddings, InMemoryVectorStore, ChatBedrockConverse
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import logging
@@ -13,6 +13,7 @@ from langchain_core.documents import Document
 from langchain_core.messages.human import HumanMessage
 from typing_extensions import List, TypedDict
 import textwrap
+import json
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -31,45 +32,16 @@ def messages_to_history_str(messages: list[BaseMessage]) -> str:
         string_messages.append(string_message)
     return "\n".join(string_messages)
 
-class RagPrompts:
-    query_expansion = ChatPromptTemplate([
-        ("system", "You are part of an information system that processes users queries. Expand the "
-                   "given query into one query that is similar in meaning but more complete and "
-                   "useful. If there are acronyms or words you are not familiar with, do not try to "
-                   "rephrase them.\nReturn only one version of the question. The query is in Italian. "
-                   "Answer in Italian."),
-        ("human", "{question}")])
-    query_expansion_hyde = ChatPromptTemplate([
-        ("system", "You are an assistant for question-answering tasks. Given a question, generate a "
-                   "paragraph that answers the question. If you don't know the answer, try to produce "
-                   "a paragraph anyway. Answer in Italian.\nQuestion: {question} \nParagraph:"),
-    ])
-    rag_standard = ChatPromptTemplate([
-        ("system", "You are an assistant for question-answering tasks. Use the following pieces of "
-                   "retrieved context to answer the question. If you don't know the answer, just "
-                   "say that you don't know. Use three sentences maximum and keep the answer concise. "
-                   "Answer in Italian.\nQuestion: {question} \nContext: {context} \nAnswer:"),
-    ])
-    rag_addcontext = ChatPromptTemplate([
-        ("system", "You are an assistant for question-answering tasks. Use the following pieces of "
-                   "retrieved context to answer the question. If you don't know the answer, just say "
-                   "that you don't know. Use three sentences maximum and keep the answer concise. "
-                   "Answer in Italian.\nQuestion: {question} \nContext: {context} \nAdditional "
-                   "useful information: {additional_context} \nAnswer:"),
-    ])
-    norag = ChatPromptTemplate([
-        ("system", "You are an assistant for question-answering tasks. If you don't know the answer, "
-                   "just say that you don't know. Use three sentences maximum and keep the answer "
-                   "concise. Answer in Italian.\nQuestion: {question} \nAnswer:"),
-    ])
-    history_consolidation = ChatPromptTemplate([
-        ("system", ("Given the following conversation between a user and an AI assistant and a follow up "
-                    "question from user, rephrase the follow up question to be a standalone question. Ensure "
-                    "that the standalone question summarizes the conversation and completes the follow up "
-                    "question with all the necessary context. The standalone question must be in Italian.\n"
-                    "Chat History:\n{history}\n"
-                    "Question: {question}\n"
-                    "Standalone question:"))])
+
+class Prompts:
+    def __init__(self, jsonfile: str):
+        with open(jsonfile, 'r') as file:
+            data = json.load(file)
+            for k,v in data.items():
+                self.__setattr__(k,self.__parse__(v))
+
+    def __parse__(self, prompt_dicts: List[dict]):
+        return ChatPromptTemplate([(d["role"], d["content"]) for d in prompt_dicts])
 
 
 # Define state for application
@@ -77,7 +49,7 @@ class State(TypedDict):
     question: str
     history: List[BaseMessage]
     context: List[Document]
-    additional_context: str
+    additional_context: str = ""
     query_aug: bool
     answer: str
 
@@ -87,13 +59,14 @@ class Rag:
     NOTALLOWED_MSG = "Mi dispiace, non posso rispondere a questa domanda."
 
     def __init__(self, session: Session,
-                 model: BedrockLLM | str,
+                 model: ChatBedrockConverse | str,
                  embedder: BedrockEmbeddings | str,
                  vector_store: InMemoryVectorStore | str | None = None,
                  **kwargs):
+        self.prompts = Prompts(kwargs.get("promptfile","./prompts.json"))
         self.session = session
         client = session.client("bedrock-runtime", region_name=kwargs.get("region"))
-        self.llm = LanguageModel(model, client=client)
+        self.llm = LanguageModel(model, client=client,  model_low=kwargs.get("model_low",None), model_pro=kwargs.get("model_pro",None))
         self.retriever = Retriever(embedder, vector_store=vector_store, client=client)
         graph_builder = StateGraph(State)
         graph_builder.set_entry_point("orchestrator")
@@ -134,11 +107,12 @@ class Rag:
             proximal_history = state["history"][-5:]
         else:
             proximal_history = state["history"]
-        messages = RagPrompts.history_consolidation.invoke({"question": state["question"],
-                                                             "history": messages_to_history_str(state["history"])})
+        messages = self.prompts.history_consolidation.invoke({"question": state["question"],
+                                                             "history": messages_to_history_str(state["history"])}).messages
         logger.info(messages)
         logger.info(proximal_history)
-        consolidated_question = self.llm.generate(prompt=messages)
+        response = self.llm.generate(messages=messages)
+        consolidated_question = response.content
         logger.info(f"Consolidated query: {textwrap.shorten(consolidated_question, width=30)}")
         return Command(
             update= {"question": consolidated_question, "history": []},
@@ -147,8 +121,9 @@ class Rag:
 
     def augmentator(self, state:State) -> Command[Literal["doc_retriever"]]:
         logger.info(f"Expanding query...")
-        messages = RagPrompts.query_expansion_hyde.invoke({"question": state["question"]})
-        augmented_question = self.llm.generate(prompt=messages)
+        messages = self.prompts.query_expansion_hyde.invoke({"question": state["question"]}).messages
+        response = self.llm.generate(messages=messages)
+        augmented_question = response.content
         logger.info(f"Expanded query: {textwrap.shorten(augmented_question, width=30)}")
         return Command(
             update= {"question": augmented_question},
@@ -156,18 +131,20 @@ class Rag:
         )
 
     def generator(self, state: State) -> Command[Literal[END]]:
-        docs_content = "\n\n".join(doc.page_content for doc in state["context"])
-        extra_context = state.get("additional_context", None)
-        if extra_context is not None and extra_context != "":
-            messages = RagPrompts.rag_addcontext.invoke(
+        doc_strings=[]
+        for i,doc in enumerate(state["context"]):
+            doc_strings.append(f"Source {i}:\n{doc.page_content}")
+        docs_content = "\n".join(doc_strings)
+        additional_context = state.get("additional_context", None)
+        if type(additional_context) is str and additional_context != "":
+            messages = self.prompts.question_with_context_add.invoke(
                 {"question": state["question"],
                  "context": docs_content,
-                 "additional_context": extra_context})
+                 "additional_context": additional_context}).messages
         else:
-            messages = RagPrompts.rag_standard.invoke({"question": state["question"],
-                                                       "context": docs_content})
-        response = self.llm.generate(prompt=messages)
-        return Command(update={"answer": response}, goto=END)
+            messages = self.prompts.question_with_context_inline_cit.invoke({"question": state["question"], "context": docs_content}).messages
+        response = self.llm.generate(messages=messages, level="pro")
+        return Command(update={"answer": response.content}, goto=END)
 
     def invoke(self, input: dict[str, Any]):
         return self.graph.invoke(input)

@@ -6,12 +6,14 @@ import gradio as gr
 from bedrock_inference.bedrock import aws_login_mfa
 import os
 import logging
-from rags import Rag, RagPrompts
+from rags import Rag
 from dotenv import dotenv_values
 import yaml
 import random
 from boto3 import Session
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import textwrap
+import re
 
 import argparse
 
@@ -38,10 +40,12 @@ GRADIO_SECRETS = config.get("gradio").get("secrets-path")
 
 logger.info("Initializing RAG...")
 rag = Rag(session=Session(),
-          model=config.get("bedrock").get("model-id"),
+          model=config.get("bedrock").get("models").get("model-id"),
           embedder=config.get("bedrock").get("embedder-id"),
           vector_store=config.get("vector-db-path"),
-          region=config.get("bedrock").get("region"))
+          region=config.get("bedrock").get("region"),
+          model_pro=config.get("bedrock").get("models").get("pro-model-id"),
+          model_low=config.get("bedrock").get("models").get("low-model-id"))
 
 
 def start_mfa_session(mfa_token, duration: int = 900):
@@ -76,14 +80,16 @@ def update_rag(mfa_token, model_id=""):
     session = start_mfa_session(str(mfa_token))
     if type(session) is Session:
         if model_id=="":
-            model_id = config.get("bedrock").get("model-id")
+            model_id = config.get("bedrock").get("models").get("model-id")
         logger.info("Trying to update rag...")
         try:
             rag_attempt = Rag(session=session,
                             model=model_id,
                             embedder=config.get("bedrock").get("embedder-id"),
                             vector_store=config.get("vector-db-path"),
-                            region=config.get("bedrock").get("region"))
+                            region=config.get("bedrock").get("region"),
+                            model_pro=config.get("bedrock").get("models").get("pro-model-id"),
+                            model_low=config.get("bedrock").get("models").get("low-model-id"))
         except Exception as e:
             logger.error("update failed")
             logger.error(str(e))
@@ -113,12 +119,20 @@ def reply(message, history, enable_rag, additional_context, query_aug, request: 
                                        "additional_context": additional_context,
                                        "query_aug": query_aug})
                 answer = response["answer"]
-                sources = list(set([os.path.basename(context.metadata.get("source", "")) for context in response["context"]]))
+                answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
+                citations = {}
+                citations_str = ""
+                for i, document in enumerate(response["context"]):
+                    source = os.path.basename(document.metadata.get("source", ""))
+                    content = document.page_content
+                    doc_string = f"[{i}] **{source}** - *\"{textwrap.shorten(content,500)}\"*"
+                    citations.update({i: {"source":source, "content":content}})
+                    citations_str += ("- "+doc_string+"\n")
                 return [gr.ChatMessage(role="assistant", content=answer),
-                        gr.ChatMessage(role="assistant", content="[" + ", ".join(sources) + "]",
-                                    metadata={"title": "📖 Sorgenti Utilizzate"})]
+                        gr.ChatMessage(role="assistant", content=citations_str,
+                                    metadata={"title": "📖 Linee guida correlate"})]
             else:
-                messages = RagPrompts.norag.invoke({"question": message})
+                messages = rag.prompts.no_rag.invoke({"question": message})
                 answer = rag.llm.generate(messages)
                 return gr.ChatMessage(role="assistant", content=answer)
         except Exception as e:
@@ -150,7 +164,7 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
     admin_state = gr.State(False)
     with gr.Tab("Chat"):
         history = [{"role": "assistant", "content": random.choice(config.get('gradio').get('greeting-messages'))}]
-        chatbot = gr.Chatbot(history, type="messages", show_copy_button=True, layout="panel",
+        chatbot = gr.Chatbot(history, type="messages", show_copy_button=True, layout="panel", resizable=True,
                              avatar_images=(None, config.get('gradio').get("avatar-img")))
         interface = gr.ChatInterface(fn=reply, type="messages",
                                      chatbot=chatbot,
