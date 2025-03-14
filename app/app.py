@@ -17,6 +17,8 @@ import re
 import io
 from PIL import Image
 import argparse
+from datetime import datetime
+from collections import defaultdict
 
 # Define the parser
 parser = argparse.ArgumentParser()
@@ -69,11 +71,14 @@ def token_auth(username: str, password: str):
     if username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR") and len(password) == 6:
         session = start_mfa_session(str(password))
         return type(session) == Session
-    # OTHER USER LOGIN
+    # OTHER USERS LOGIN
     else:
-        check_user = username == dotenv_values(GRADIO_SECRETS).get("GRADIO_TESTUSR")
-        check_password = password == dotenv_values(GRADIO_SECRETS).get("GRADIO_TESTPWD")
-        return check_user and check_password
+        for user,pwd in zip(json.loads(dotenv_values(GRADIO_SECRETS).get("GRADIO_USRS")), json.loads(dotenv_values(GRADIO_SECRETS).get("GRADIO_PWDS"))):
+            check_user = (username == user)
+            check_password = (password == pwd)
+            if check_user and check_password:
+                return True
+        return False
 
 
 def update_rag(mfa_token):
@@ -106,6 +111,166 @@ def from_list_to_messages(chat:list[dict]):
     template = ChatPromptTemplate([MessagesPlaceholder("history")]).invoke({"history":[(message["role"],message["content"]) for message in chat]})
     return template.to_messages()
 
+LOG_STAT_FILE = "logs/token_usage.json"
+
+def log_token_usage(ip_address: str, input_tokens: int, output_tokens: int):
+    """Logs the input and output token usage for a given IP address with timestamps."""
+    os.makedirs(os.path.dirname(LOG_STAT_FILE), exist_ok=True)
+
+    if os.path.exists(LOG_STAT_FILE):
+        with open(LOG_STAT_FILE, "r") as file:
+            data = json.load(file)
+    else:
+        data = {}
+
+    # Ensure IP has an entry
+    if ip_address not in data:
+        data[ip_address] = {"input_tokens": [], "output_tokens": []}
+
+    # Append new token usage
+    now = datetime.now().isoformat()
+    data[ip_address]["input_tokens"].append((input_tokens, now))
+    data[ip_address]["output_tokens"].append((output_tokens, now))
+
+    # Save back to file
+    with open(LOG_STAT_FILE, "w") as file:
+        json.dump(data, file, indent=4)
+
+def get_usage_stats():
+    """Computes total users, total input/output tokens, averages, and cumulative daily token usage."""
+    if not os.path.exists(LOG_STAT_FILE):
+        return {
+            "total_users": 0,
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "avg_input_tokens_per_user_per_day": 0,
+            "avg_output_tokens_per_user_per_day": 0,
+            "cumulative_tokens_per_day": []
+        }
+
+    with open(LOG_STAT_FILE, "r") as file:
+        data = json.load(file)
+
+    total_users = len(data)
+    total_input_tokens = 0
+    total_output_tokens = 0
+    daily_totals = defaultdict(lambda: [0, 0])  # {date: [input_tokens, output_tokens]}
+
+    for ip, usage in data.items():
+        for tokens, timestamp in usage["input_tokens"]:
+            date = datetime.fromisoformat(timestamp).date()
+            total_input_tokens += tokens
+            daily_totals[date][0] += tokens
+
+        for tokens, timestamp in usage["output_tokens"]:
+            date = datetime.fromisoformat(timestamp).date()
+            total_output_tokens += tokens
+            daily_totals[date][1] += tokens
+
+    # Compute averages
+    num_days = (datetime.now().date() - min(daily_totals.keys(), default=datetime.now().date())).days + 1
+    avg_input_tokens_per_user_per_day = total_input_tokens / (total_users * num_days) if total_users > 0 else 0
+    avg_output_tokens_per_user_per_day = total_output_tokens / (total_users * num_days) if total_users > 0 else 0
+
+    # Cumulative token count per day
+    sorted_dates = sorted(daily_totals.keys())
+    cumulative_input = 0
+    cumulative_output = 0
+    cumulative_tokens_per_day = []
+
+    for date in sorted_dates:
+        cumulative_input += daily_totals[date][0]
+        cumulative_output += daily_totals[date][1]
+        cumulative_tokens_per_day.append((cumulative_input + cumulative_output, date.isoformat()))
+
+    return {
+        "total_users": total_users,
+        "total_input_tokens": total_input_tokens,
+        "total_output_tokens": total_output_tokens,
+        "avg_input_tokens_per_user_per_day": avg_input_tokens_per_user_per_day,
+        "avg_output_tokens_per_user_per_day": avg_output_tokens_per_user_per_day,
+        "cumulative_tokens_per_day": cumulative_tokens_per_day
+    }
+
+import matplotlib.pyplot as plt
+
+def plot_cumulative_tokens():
+    """Plots cumulative token usage over time."""
+    stats = get_usage_stats()
+    if not stats["cumulative_tokens_per_day"]:
+        print("No data to plot.")
+        return
+
+    dates = [datetime.fromisoformat(d) for _, d in stats["cumulative_tokens_per_day"]]
+    token_counts = [t for t, _ in stats["cumulative_tokens_per_day"]]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(dates, token_counts, marker="o", linestyle="-", color="b", label="Cumulative Tokens")
+
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Total Tokens")
+    ax.set_title("Cumulative Token Usage Over Time")
+    ax.tick_params(axis='x', rotation=45)
+    ax.legend()
+    ax.grid()
+
+    return fig
+
+LOG_FILE = "logs/usage_log.json"
+
+#20K = approx 20 cents with most expensive models
+def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
+    tokens_consumed, last_access, banned = read_usage_log(ip_address)
+    timediff = datetime.now() - last_access
+    if tokens_consumed>max_tokens:
+        # if you exceeded the tokens quota and less than 24 hours have passed since last call
+        # then you are banned
+        if timediff.total_seconds()<(24*60*60):
+            update_usage_log(ip_address, 0, True)
+            return True
+        # if you exceeded the tokens quota but your last call was more than 24 hours ago, the ban ends
+        else:
+            update_usage_log(ip_address, 0, False)
+            return False
+    # if you did not exceed the tokens quota, you are always good to go
+    else:
+        return False
+
+def read_usage_log(ip_address: str) -> (int, datetime, bool):
+    if not os.path.exists(LOG_FILE):
+        return 0, datetime.now(), False
+    with open(LOG_FILE, "r") as file:
+        data = json.load(file)
+    if ip_address in data:
+        entry = data[ip_address]
+        return entry["tokens_count"], datetime.fromisoformat(entry["last_call"]), entry["banned_flag"]
+    return 0, datetime.now(), False
+
+
+def update_usage_log(ip_address: str, tokens_consumed: int, banned: bool):
+    """Updates the usage log, modifying the entry for the given IP address."""
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "r") as file:
+            data = json.load(file)
+    else:
+        data = {}
+
+    was_banned = data.get(ip_address, {}).get("banned_flag", False)
+    tokens_count = data.get(ip_address, {}).get("tokens_count", 0) + tokens_consumed
+
+    if was_banned and not banned:
+        tokens_count = 0  # Reset tokens if ban is lifted
+
+    data[ip_address] = {
+        "tokens_count": tokens_count,
+        "last_call": datetime.now().isoformat(),
+        "banned_flag": banned
+    }
+
+    with open(LOG_FILE, "w") as file:
+        json.dump(data, file, indent=4)
 
 def dot_progress_bar(score, total_dots=7):
     filled_count = round(score * total_dots)
@@ -119,13 +284,24 @@ def reply(message, history, enable_rag, additional_context, query_aug, request: 
         logger.error("LLM not configured")
         gr.Error("Error: LLM not configured")
     else:
+        is_banned = check_ban(request.client.host)
+        if is_banned:
+            logger.error("exceeded daily usage limit!")
+            gr.Error("Error: exceeded daily usage limit")
+            return [gr.ChatMessage(role="assistant", content="Sembra che tu abbia esaurito la tua quota giornaliera. Riprova più tardi.")]
         try:
             if enable_rag:
                 response = rag.invoke({"question": message,
                                        "history": from_list_to_messages(history),
                                        "additional_context": additional_context,
+                                       "input_tokens_count":0,
+                                       "output_tokens_count":0,
                                        "query_aug": query_aug})
                 answer = response["answer"]
+                input_tokens_count = response["input_tokens_count"]
+                output_tokens_count = response["output_tokens_count"]
+                update_usage_log(request.client.host, input_tokens_count+output_tokens_count*4, False)
+                log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
                 answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
                 citations = {}
                 citations_str = ""
@@ -141,8 +317,8 @@ def reply(message, history, enable_rag, additional_context, query_aug, request: 
                         gr.ChatMessage(role="assistant", content=citations_str,
                                     metadata={"title": "📖 Linee guida correlate"})]
             else:
-                messages = rag.prompts.no_rag.invoke({"question": message})
-                answer = rag.llm.generate(messages)
+                response = rag.generate_norag(message)
+                answer = response["answer"]
                 return gr.ChatMessage(role="assistant", content=answer)
         except Exception as e:
             logger.error(str(e))
@@ -163,7 +339,12 @@ def onload(request: gr.Request):
 
 def toggle_interactivity(is_admin):
     logger.info("Updating admin functionalities")
-    return gr.UploadButton(file_count="single", interactive=is_admin)
+    return [gr.UploadButton(file_count="single", interactive=is_admin),gr.Tab("Stats", visible=is_admin)]
+
+def update_stats():
+    stats_plot = gr.Plot(plot_cumulative_tokens())
+    stats = get_usage_stats()
+    return [stats_plot, stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day']]
 
 custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
 
@@ -207,7 +388,7 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
             return not double_log_flag
         interface.chatbot.like(manual_logger, [chatbot, double_log_flag], double_log_flag)
 
-    with gr.Tab("Settings"):
+    with gr.Tab("Settings") as settings:
         with gr.Group():
             gr.FileExplorer(label="Knowledge Base",
                             root_dir=config.get('kb-folder'),
@@ -218,11 +399,19 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456")
             btn = gr.Button("Confirm")
         gr.Image(label="Workflow schema",value=Image.open(io.BytesIO(rag.get_image())))
+    with gr.Tab("Stats", visible=False) as stats_tab:
+        stats_plot = gr.Plot(plot_cumulative_tokens())
+        stats = get_usage_stats()
+        with gr.Row():
+            stats_users = gr.Textbox(label="Users", value=f"{stats['total_users']}", interactive=False)
+            stats_input = gr.Textbox(label="Input Tokens / Day", value=f"{stats['avg_input_tokens_per_user_per_day']}", interactive=False)
+            stats_output = gr.Textbox(label="Output Tokens / Day", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
     gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div>", elem_id="footer")
     upload_button.upload(upload_file, upload_button, None)
     mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
-    admin_state.change(toggle_interactivity, inputs=admin_state, outputs=upload_button)
+    admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab])
+    stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, stats_users, stats_input, stats_output] )
     demo.load(onload, inputs=None, outputs=admin_state)
 demo.launch(server_name="0.0.0.0",
             server_port=7860,

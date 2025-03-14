@@ -1,5 +1,5 @@
 unstructured
-gradio
+gradio==5.20.0
 bedrock-inference
 python-dotenv
 langchain_aws
@@ -11,3 +11,4 @@ langgraph
 nltk
 libmagic
 pyyaml
+matplotlib
