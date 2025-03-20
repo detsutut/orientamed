@@ -2,8 +2,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 import csv
+import boto3
 import gradio as gr
-from bedrock_inference.bedrock import aws_login_mfa
 import os
 import logging
 from rags import Rag
@@ -25,11 +25,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--settings', action="store", dest='settings_file', default='settings.yaml')
 parser.add_argument('--sslcert', action="store", dest='ssl_certfile', default=None)
 parser.add_argument('--sslkey', action="store", dest='ssl_keyfile', default=None)
+parser.add_argument('--debug', action="store", dest='debug', default=False, type=bool)
+parser.add_argument('--local', action="store", dest='local', default=False, type=bool)
 args = parser.parse_args()
 
 
 # GLOBAL VARIABLES: SHARED BETWEEN USERS AND SESSIONS
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 with open(args.settings_file) as stream:
     config = yaml.safe_load(stream)
@@ -50,16 +54,18 @@ rag = Rag(session=Session(),
           model_pro=config.get("bedrock").get("models").get("pro-model-id"),
           model_low=config.get("bedrock").get("models").get("low-model-id"))
 
-
-def start_mfa_session(mfa_token, duration: int = 900):
+def get_mfa_response(mfa_token, duration: int = 900):
     logger.info("Checking MFA token...")
+    if len(mfa_token) != 6:
+        return None
     try:
-        session = aws_login_mfa(arn=dotenv_values(AWS_SECRETS).get("AWS_ARN_MFA_DEVICE"),
-                                aws_access_key_id=dotenv_values(AWS_SECRETS).get("AWS_ACCESS_KEY_ID"),
-                                aws_secret_access_key=dotenv_values(AWS_SECRETS).get("AWS_SECRET_ACCESS_KEY"),
-                                token=mfa_token,
-                                duration=duration)
-        return session
+        sts_client = boto3.client('sts',
+                            aws_access_key_id=dotenv_values(AWS_SECRETS).get("AWS_ACCESS_KEY_ID"),
+                            aws_secret_access_key=dotenv_values(AWS_SECRETS).get("AWS_SECRET_ACCESS_KEY"))
+        response = sts_client.get_session_token(DurationSeconds=duration,
+                                                SerialNumber=dotenv_values(AWS_SECRETS).get("AWS_ARN_MFA_DEVICE"),
+                                                TokenCode=mfa_token)
+        return response
     except Exception as e:
         logger.error(str(e))
         return None
@@ -68,9 +74,8 @@ def start_mfa_session(mfa_token, duration: int = 900):
 def token_auth(username: str, password: str):
     logger.info(f"Login attempt from user '{username}'")
     # ADMIN LOGIN
-    if username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR") and len(password) == 6:
-        session = start_mfa_session(str(password))
-        return type(session) == Session
+    if username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR"):
+        return get_mfa_response(str(password)) is not None
     # OTHER USERS LOGIN
     else:
         for user,pwd in zip(json.loads(dotenv_values(GRADIO_SECRETS).get("GRADIO_USRS")), json.loads(dotenv_values(GRADIO_SECRETS).get("GRADIO_PWDS"))):
@@ -79,14 +84,21 @@ def token_auth(username: str, password: str):
             if check_user and check_password:
                 return True
         return False
+    return False
 
 
-def update_rag(mfa_token):
+def update_rag(mfa_token, use_mfa_session=args.local):
     global rag
-    session = start_mfa_session(str(mfa_token))
-    if type(session) is Session:
-        logger.info("Trying to update rag...")
+    logger.info("Trying to update rag...")
+    mfa_response = get_mfa_response(mfa_token)
+    if mfa_response is not None:
         try:
+            if use_mfa_session:
+                session = boto3.Session(aws_access_key_id=mfa_response['Credentials']['AccessKeyId'],
+                                        aws_secret_access_key=mfa_response['Credentials']['SecretAccessKey'],
+                                        aws_session_token=mfa_response['Credentials']['SessionToken'])
+            else:
+                session = Session()
             rag_attempt = Rag(session=session,
                             model=config.get("bedrock").get("models").get("model-id"),
                             embedder=config.get("bedrock").get("embedder-id"),
@@ -94,12 +106,13 @@ def update_rag(mfa_token):
                             region=config.get("bedrock").get("region"),
                             model_pro=config.get("bedrock").get("models").get("pro-model-id"),
                             model_low=config.get("bedrock").get("models").get("low-model-id"))
+            rag = rag_attempt
+            logger.info("Rag updated")
+            return True, ""
         except Exception as e:
             logger.error("update failed")
             logger.error(str(e))
-        rag = rag_attempt
-        logger.info("Rag updated")
-        return True, ""
+            return False, ""
     else:
         return False, ""
 
@@ -279,12 +292,12 @@ def dot_progress_bar(score, total_dots=7):
     empty = "·" * empty_count
     return f"{filled}{empty} {round(score*100,2)}%"
 
-def reply(message, history, enable_rag, additional_context, query_aug, request: gr.Request):
+def reply(message, history, is_admin, enable_rag, additional_context, query_aug, request: gr.Request):
     if rag is None:
         logger.error("LLM not configured")
         gr.Error("Error: LLM not configured")
     else:
-        is_banned = check_ban(request.client.host)
+        is_banned = check_ban(request.client.host) if not is_admin else False
         if is_banned:
             logger.error("exceeded daily usage limit!")
             gr.Error("Error: exceeded daily usage limit")
@@ -364,7 +377,8 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
                                      save_history=True,
                                      analytics_enabled = False,
                                      examples=[[e] for e in config.get('gradio').get('examples')],
-                                     additional_inputs=[gr.Checkbox(label="Usa Knowledge Base", value=True, render=False),
+                                     additional_inputs=[admin_state,
+                                                        gr.Checkbox(label="Usa Knowledge Base", value=True, render=False),
                                                         gr.Checkbox(label="Usa Query Augmentation", value=False, render=False),
                                                         gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili", render=False)],
                                      additional_inputs_accordion="Opzioni",

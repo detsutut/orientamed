@@ -15,9 +15,8 @@ from typing_extensions import List, TypedDict
 import textwrap
 import json
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def messages_to_history_str(messages: list[BaseMessage]) -> str:
     """Convert messages to a history string."""

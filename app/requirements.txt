@@ -1,6 +1,5 @@
 unstructured
 gradio==5.20.0
-bedrock-inference
 python-dotenv
 langchain_aws
 langchain_core
