@@ -81,14 +81,14 @@ class Rag:
         self.graph = graph_builder.compile()
 
     def generate_norag(self, input: str):
-        messages = self.prompts.no_rag.invoke({"question": input})
+        messages = self.prompts.question_open.invoke({"question": input}).messages
         response = self.llm.generate(messages=messages)
         return {"answer": response.content,
                 "input_tokens_count": response.usage_metadata["input_tokens"],
                 "output_tokens_count": response.usage_metadata["output_tokens"]}
 
     def orchestrator(self, state: State) -> Command[Literal["augmentator", "doc_retriever", "history_consolidator"]]:
-        logger.info(f"Dispatching request: {state}")
+        logger.debug(f"Dispatching request: {state}")
         previous_user_interactions = [message for message in state["history"] if type(message) is HumanMessage]
         if len(previous_user_interactions) > 0:
             return Command(goto="history_consolidator")
@@ -96,9 +96,9 @@ class Rag:
             return Command(goto="augmentator" if state["query_aug"] else "doc_retriever")
 
     def doc_retriever(self, state: State) -> Command[Literal["generator", END]]:
-        logger.info(f"New retrieval: {state}")
+        logger.debug(f"New retrieval: {state}")
         retrieved_docs, scores = self.retriever.retrive_with_scores(state["question"], n=10, score_threshold=0.6)
-        logger.info(f"Retrieved docs: {retrieved_docs}")
+        logger.debug(f"Retrieved docs: {retrieved_docs}")
         if len(retrieved_docs) == 0:
             return Command(
                 update={"context": {"docs": retrieved_docs, "scores": scores},
@@ -112,7 +112,7 @@ class Rag:
             )
 
     def history_consolidator(self, state: State) -> Command[Literal["orchestrator"]]:
-        logger.info(f"Consolidating previous history...")
+        logger.debug(f"Consolidating previous history...")
         if len(state["history"]) > 5:
             proximal_history = state["history"][-5:]
         else:
@@ -120,11 +120,11 @@ class Rag:
         messages = self.prompts.history_consolidation.invoke({"question": state["question"],
                                                               "history": messages_to_history_str(
                                                                   state["history"])}).messages
-        logger.info(messages)
-        logger.info(proximal_history)
+        logger.debug(messages)
+        logger.debug(proximal_history)
         response = self.llm.generate(messages=messages)
         consolidated_question = response.content
-        logger.info(f"Consolidated query: {textwrap.shorten(consolidated_question, width=30)}")
+        logger.debug(f"Consolidated query: {textwrap.shorten(consolidated_question, width=30)}")
         return Command(
             update={"question": consolidated_question,
                     "history": [],
@@ -134,11 +134,11 @@ class Rag:
         )
 
     def augmentator(self, state: State) -> Command[Literal["doc_retriever"]]:
-        logger.info(f"Expanding query...")
+        logger.debug(f"Expanding query...")
         messages = self.prompts.query_expansion_hyde.invoke({"question": state["question"]}).messages
         response = self.llm.generate(messages=messages)
         augmented_question = response.content
-        logger.info(f"Expanded query: {textwrap.shorten(augmented_question, width=30)}")
+        logger.debug(f"Expanded query: {textwrap.shorten(augmented_question, width=30)}")
         return Command(
             update={"question": augmented_question,
                     "input_tokens_count": state["input_tokens_count"] + response.usage_metadata["input_tokens"],

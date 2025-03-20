@@ -40,7 +40,7 @@ class Retriever:
         _ = self.vector_store.add_documents(documents=all_splits)
 
     def upload_file(self, filepath):
-        logger.info(f"Uploading {filepath}...")
+        logger.debug(f"Uploading {filepath}...")
         name = Path(filepath).name
         with open(filepath) as f:
             content = f.read()
@@ -49,7 +49,7 @@ class Retriever:
         all_splits = self.splitter.split_documents([doc])
         logger.debug(f"{len(all_splits)} splits created for {name}")
         _ = self.vector_store.add_documents(documents=all_splits)
-        logger.info(f"Vector store updated with {name}.")
+        logger.debug(f"Vector store updated with {name}.")
         return None
 
     def save_vector_store(self, file_path: str):

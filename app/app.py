@@ -45,7 +45,7 @@ os.chdir(wd)
 AWS_SECRETS = config.get("bedrock").get("secrets-path")
 GRADIO_SECRETS = config.get("gradio").get("secrets-path")
 
-logger.info("Initializing RAG...")
+logger.debug("Initializing RAG...")
 rag = Rag(session=Session(),
           model=config.get("bedrock").get("models").get("model-id"),
           embedder=config.get("bedrock").get("embedder-id"),
@@ -55,7 +55,7 @@ rag = Rag(session=Session(),
           model_low=config.get("bedrock").get("models").get("low-model-id"))
 
 def get_mfa_response(mfa_token, duration: int = 900):
-    logger.info("Checking MFA token...")
+    logger.debug("Checking MFA token...")
     if len(mfa_token) != 6:
         return None
     try:
@@ -89,7 +89,7 @@ def token_auth(username: str, password: str):
 
 def update_rag(mfa_token, use_mfa_session=args.local):
     global rag
-    logger.info("Trying to update rag...")
+    logger.debug("Trying to update rag...")
     mfa_response = get_mfa_response(mfa_token)
     if mfa_response is not None:
         try:
@@ -107,7 +107,7 @@ def update_rag(mfa_token, use_mfa_session=args.local):
                             model_pro=config.get("bedrock").get("models").get("pro-model-id"),
                             model_low=config.get("bedrock").get("models").get("low-model-id"))
             rag = rag_attempt
-            logger.info("Rag updated")
+            logger.debug("Rag updated")
             return True, ""
         except Exception as e:
             logger.error("update failed")
@@ -211,7 +211,7 @@ def plot_cumulative_tokens():
     """Plots cumulative token usage over time."""
     stats = get_usage_stats()
     if not stats["cumulative_tokens_per_day"]:
-        print("No data to plot.")
+        logger.warning("No data to plot.")
         return
 
     dates = [datetime.fromisoformat(d) for _, d in stats["cumulative_tokens_per_day"]]
@@ -346,12 +346,12 @@ def onload(request: gr.Request):
         "session_hash":request.session_hash,
         "query_params":dict(request.query_params)
     }
-    logger.info(f"Login details: {logging_info}")
+    logger.debug(f"Login details: {logging_info}")
     return request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR")
 
 
 def toggle_interactivity(is_admin):
-    logger.info("Updating admin functionalities")
+    logger.debug("Updating admin functionalities")
     return [gr.UploadButton(file_count="single", interactive=is_admin),gr.Tab("Stats", visible=is_admin)]
 
 def update_stats():

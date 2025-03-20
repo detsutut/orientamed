@@ -98,11 +98,5 @@
       "role": "human",
       "content": "Note cliniche:\n{notes}"
     }
-  ],
-  "no_rag": [
-    {
-      "role": "system",
-      "content": "You are an assistant for question-answering tasks. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise. Answer in Italian.\nQuestion: {question}\nAnswer:"
-    }
   ]
 }
