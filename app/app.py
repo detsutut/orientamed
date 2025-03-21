@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from pathlib import Path
 import csv
 import boto3
@@ -19,6 +18,7 @@ from PIL import Image
 import argparse
 from datetime import datetime
 from collections import defaultdict
+from gradio_modal import Modal
 
 # Define the parser
 parser = argparse.ArgumentParser()
@@ -158,7 +158,9 @@ def get_usage_stats():
             "total_output_tokens": 0,
             "avg_input_tokens_per_user_per_day": 0,
             "avg_output_tokens_per_user_per_day": 0,
-            "cumulative_tokens_per_day": []
+            "cumulative_tokens_per_day": [],
+            "cumulative_input_tokens_per_day": [],
+            "cumulative_output_tokens_per_day": []
         }
 
     with open(LOG_STAT_FILE, "r") as file:
@@ -169,7 +171,7 @@ def get_usage_stats():
     total_output_tokens = 0
     daily_totals = defaultdict(lambda: [0, 0])  # {date: [input_tokens, output_tokens]}
 
-    for ip, usage in data.items():
+    for usage in data.values():
         for tokens, timestamp in usage["input_tokens"]:
             date = datetime.fromisoformat(timestamp).date()
             total_input_tokens += tokens
@@ -181,33 +183,70 @@ def get_usage_stats():
             daily_totals[date][1] += tokens
 
     # Compute averages
-    num_days = (datetime.now().date() - min(daily_totals.keys(), default=datetime.now().date())).days + 1
-    avg_input_tokens_per_user_per_day = total_input_tokens / (total_users * num_days) if total_users > 0 else 0
-    avg_output_tokens_per_user_per_day = total_output_tokens / (total_users * num_days) if total_users > 0 else 0
+    active_days = len(daily_totals)
+    avg_input_tokens_per_user_per_day = total_input_tokens / (total_users * active_days) if total_users > 0 and active_days > 0 else 0
+    avg_output_tokens_per_user_per_day = total_output_tokens / (total_users * active_days) if total_users > 0 and active_days > 0 else 0
 
     # Cumulative token count per day
     sorted_dates = sorted(daily_totals.keys())
     cumulative_input = 0
     cumulative_output = 0
     cumulative_tokens_per_day = []
+    cumulative_input_tokens_per_day = []
+    cumulative_output_tokens_per_day = []
 
     for date in sorted_dates:
         cumulative_input += daily_totals[date][0]
         cumulative_output += daily_totals[date][1]
         cumulative_tokens_per_day.append((cumulative_input + cumulative_output, date.isoformat()))
+        cumulative_input_tokens_per_day.append((cumulative_input, date.isoformat()))
+        cumulative_output_tokens_per_day.append((cumulative_output, date.isoformat()))
 
     return {
         "total_users": total_users,
         "total_input_tokens": total_input_tokens,
         "total_output_tokens": total_output_tokens,
-        "avg_input_tokens_per_user_per_day": avg_input_tokens_per_user_per_day,
-        "avg_output_tokens_per_user_per_day": avg_output_tokens_per_user_per_day,
-        "cumulative_tokens_per_day": cumulative_tokens_per_day
+        "avg_input_tokens_per_user_per_day": round(avg_input_tokens_per_user_per_day),
+        "avg_output_tokens_per_user_per_day": round(avg_output_tokens_per_user_per_day),
+        "cumulative_tokens_per_day": cumulative_tokens_per_day,
+        "cumulative_input_tokens_per_day": cumulative_input_tokens_per_day,
+        "cumulative_output_tokens_per_day": cumulative_output_tokens_per_day
     }
 
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 def plot_cumulative_tokens():
+    """Plots cumulative token usage over time with stacked bars for input and output tokens and a line for total cumulative tokens using Plotly."""
+    stats = get_usage_stats()
+    if not stats["cumulative_tokens_per_day"]:
+        logger.warning("No data to plot.")
+        return
+
+    dates = [datetime.fromisoformat(d) for _, d in stats["cumulative_tokens_per_day"]]
+    input_tokens = [t for t, _ in stats["cumulative_input_tokens_per_day"]]
+    output_tokens = [t for t, _ in stats["cumulative_output_tokens_per_day"]]
+    total_tokens = [t for t, _ in stats["cumulative_tokens_per_day"]]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(x=dates, y=input_tokens, name="Input Tokens", marker_color='royalblue',width=1000*3600*24*0.5))
+    fig.add_trace(go.Bar(x=dates, y=output_tokens, name="Output Tokens", marker_color='lightsalmon',width=1000*3600*24*0.5))
+    fig.add_trace(go.Scatter(x=dates, y=total_tokens, mode='lines+markers', name="Total", line=dict(color='darkslategrey')))
+
+    fig.update_layout(
+        title="Cumulative Token Usage Over Time",
+        xaxis_title="Date",
+        yaxis_title="Tokens [tokens/dd]",
+        barmode='stack',
+        xaxis=dict(tickangle=-45),
+        legend_title="Legend",
+        template="plotly_white"
+    )
+
+    return fig
+
+def plot_cumulative_tokens2():
     """Plots cumulative token usage over time."""
     stats = get_usage_stats()
     if not stats["cumulative_tokens_per_day"]:
@@ -216,9 +255,13 @@ def plot_cumulative_tokens():
 
     dates = [datetime.fromisoformat(d) for _, d in stats["cumulative_tokens_per_day"]]
     token_counts = [t for t, _ in stats["cumulative_tokens_per_day"]]
+    input_tokens = [t for t, _ in stats["cumulative_input_tokens_per_day"]]
+    output_tokens = [t for t, _ in stats["cumulative_output_tokens_per_day"]]
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(dates, token_counts, marker="o", linestyle="-", color="b", label="Cumulative Tokens")
+    ax.bar(dates, input_tokens, color="royalblue", label="Cumulative Input Tokens")
+    ax.bar(dates, output_tokens, color="lightsalmon", bottom=input_tokens, label="Cumulative Output Tokens")
+    ax.plot(dates, token_counts, marker="o", linestyle="-", color="darkslategrey", label="Cumulative Tokens")
 
     ax.set_xlabel("Date")
     ax.set_ylabel("Total Tokens")
@@ -338,7 +381,7 @@ def reply(message, history, is_admin, enable_rag, additional_context, query_aug,
             gr.Error("Error: " + str(e))
 
 
-def onload(request: gr.Request):
+def onload(disclaimer_seen:bool, request: gr.Request):
     logging_info = {
         "username":request.username,
         "ip":request.client.host,
@@ -347,7 +390,12 @@ def onload(request: gr.Request):
         "query_params":dict(request.query_params)
     }
     logger.debug(f"Login details: {logging_info}")
-    return request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR")
+    if not disclaimer_seen:
+        modal_visible = True
+        disclaimer_seen = True
+    else:
+        modal_visible = False
+    return [request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR"),Modal(visible=modal_visible),disclaimer_seen]
 
 
 def toggle_interactivity(is_admin):
@@ -357,14 +405,32 @@ def toggle_interactivity(is_admin):
 def update_stats():
     stats_plot = gr.Plot(plot_cumulative_tokens())
     stats = get_usage_stats()
-    return [stats_plot, stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day']]
+    return [stats_plot, stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day'], round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)]
 
 custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
 
+def _export(history):
+    with open('logs/chat_history.txt', 'w') as f:
+        f.write(str(history))
+    return 'logs/chat_history.txt'
 
-with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden}") as demo:
-    gr.Markdown(f"<center><h1><img src='gradio_api/file={config.get('gradio').get('logo-img')}' style='height:1.2em; display:inline-block;'> OrientaMed - Demo</h1></center>")
+with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden}", head="""<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Funnel+Display&display=swap" rel="stylesheet">""") as demo:
+    with Modal(visible=False) as modal:
+        gr.Markdown("""### ⚠️ Disclaimer / Avviso  
+
+**English:**  
+By using this application, you acknowledge that you must not enter any patient-sensitive or personally identifiable health information. Data entered may be shared with third-party services, and any disclosure of patient information is your own responsibility.<br/>This platform is not designed to store or process protected health data.  
+
+Conversations made using this AI tool are not intended to replace the opinion of a medical expert and should always be critically evaluated by a qualified professional. The app is intended to be used as a reference by general practitioners and should not be relied upon as the sole source for medical decision-making.
+
+**Italiano:**  
+Utilizzando questa applicazione, riconosci di non dover inserire informazioni sensibili sui pazienti o dati sanitari personali identificabili. I dati inseriti possono essere condivisi con servizi di terze parti e qualsiasi divulgazione di informazioni sui pazienti è sotto la tua responsabilità.<br/>Questa piattaforma non è progettata per archiviare o elaborare dati sanitari protetti.
+
+Le conversazioni effettuate utilizzando questo strumento di intelligenza artificiale non sono destinate a sostituire il parere di un esperto medico e dovrebbero essere sempre valutate criticamente da un professionista qualificato. L'app è destinata ad essere utilizzata come riferimento dai medici di base e non deve essere considerata come l'unica fonte per le decisioni mediche.  
+""")
+    gr.Markdown(f"<center><h1 style=\042font-size:2.7em; font-family: 'Funnel Display', sans-serif;\042><sup style='color: #61e9b7; font-size:1em;'>+</sup>OrientaMed<span style='color: #61e9b7; font-size:1em;'> .</span></h1></center>")
     admin_state = gr.State(False)
+    disclaimer_seen = gr.BrowserState(False)
     with gr.Tab("Chat"):
         history = [{"role": "assistant", "content": random.choice(config.get('gradio').get('greeting-messages'))}]
         chatbot = gr.Chatbot(history, type="messages", show_copy_button=True, layout="panel", resizable=True,
@@ -383,6 +449,12 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
                                                         gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili", render=False)],
                                      additional_inputs_accordion="Opzioni",
                                      )
+        download_btn = gr.Button("Scarica la conversazione", variant='secondary')
+        download_btn_hidden = gr.DownloadButton(visible=False, elem_id="download_btn_hidden")
+        download_btn.click(fn=_export, inputs=chatbot, outputs=[download_btn_hidden]).then(fn=None, inputs=None,
+                                                                                        outputs=None,
+                                                                                        js="() => document.querySelector('#download_btn_hidden').click()")
+
 
         # Workaround to take into account username and ip address in logs
         # for some reason, overriding the like callback causes two consecutive calls at few ms of distance
@@ -412,21 +484,25 @@ with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: 
         with gr.Group():
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456")
             btn = gr.Button("Confirm")
-        gr.Image(label="Workflow schema",value=Image.open(io.BytesIO(rag.get_image())))
     with gr.Tab("Stats", visible=False) as stats_tab:
-        stats_plot = gr.Plot(plot_cumulative_tokens())
-        stats = get_usage_stats()
-        with gr.Row():
-            stats_users = gr.Textbox(label="Users", value=f"{stats['total_users']}", interactive=False)
-            stats_input = gr.Textbox(label="Input Tokens / Day", value=f"{stats['avg_input_tokens_per_user_per_day']}", interactive=False)
-            stats_output = gr.Textbox(label="Output Tokens / Day", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
-    gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div>", elem_id="footer")
+        with gr.Group():
+            stats_plot = gr.Plot(plot_cumulative_tokens())
+            stats = get_usage_stats()
+            with gr.Row():
+                stats_users = gr.Textbox(label="Total users", value=f"{stats['total_users']}", interactive=False)
+                stats_input = gr.Textbox(label="Average user input [tokens/dd]", value=f"{stats['avg_input_tokens_per_user_per_day']}", interactive=False)
+                stats_output = gr.Textbox(label="Average user output [tokens/dd]", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
+                stats_ratio = gr.Textbox(label="Input/Output ratio", value=f"{round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)}", interactive=False)
+        with gr.Group():
+            gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(rag.get_image())))
+
+    gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div><br><div style='display:flex; justify-content:center; align-items:center'><small>© 2024 - 2025 | BMI Lab 'Mario Stefanelli' | DHEAL-COM | <a href='https://github.com/detsutut/dheal-com-rag-demo'>GitHub</a> </small></div>", elem_id="footer")
     upload_button.upload(upload_file, upload_button, None)
     mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab])
-    stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, stats_users, stats_input, stats_output] )
-    demo.load(onload, inputs=None, outputs=admin_state)
+    stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, stats_users, stats_input, stats_output, stats_ratio] )
+    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen])
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
             auth=token_auth,

@@ -9,7 +9,7 @@
 
 <br />
 <div align="center">
-  <h2><img src="app/assets/a.png" style='height:2em;'/><br>OrientaMed</h2>
+  <h2><img src="app/assets/orientamed_logo.jpeg" alt='OrientaMed' style='height:2em;'/></h2>
   <h3 align="center">Sistema conversazionale basato su LLMs e RAG per assistenza al triage</h3>
   
   [![Status][status-shield]][status-url]

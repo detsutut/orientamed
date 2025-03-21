@@ -10,4 +10,5 @@ langgraph
 nltk
 libmagic
 pyyaml
-matplotlib
+plotly>=6
+gradio_modal
