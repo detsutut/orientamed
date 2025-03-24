@@ -11,14 +11,18 @@ gradio:
   logo-img: './assets/a.png'
   flagging-options:
     - "Contenuto errato"
-    - "Contenuto incompleto"
+    - "Contenuto basato su fonti errate"
     - "Contenuto non informativo"
     - "Contenuto ambiguo"
+    - "Contenuto incompleto"
     - "Altro"
   greeting-messages:
-    - "Sono un assistente per il triage reumatico. Come posso aiutarti?"
-    - "Sono un assistente per il triage reumatico. Come posso esserti d'aiuto?"
-    - "Ciao, sono un assistente specializzato nel triage reumatico. Come posso aiutarti?"
+    - "Sono un assistente per il triage reumatico. Il mio compito è assistere i medici di medicina generale nella valutazione delle patologie di interesse reumatologico e dell'eventuale invio all'attenzione di uno specialista. Come posso aiutarti?"
+    - "Sono un assistente per il triage reumatico. Supporto i medici di base nella valutazione dell'invio dei pazienti reumatici al reumatologo ospedaliero per effettuare prime visite ma per ottimizzare la co-gestione del paziente già in trattamento. In che modo posso esserti utile?"
+    - "OrientaMed supporta i medici di base nella valutazione delle patologie reumatologiche e nell'eventuale indirizzamento a uno specialista. Come posso aiutarti?"
+    - "Le malattie reumatiche interessano più del 10% della popolazione generale e costituiscono pertanto un carico di lavoro importante per il medico di base. Il mio compito è quello di assistere i medici di medicina generale nella gestione di questo carico. Come posso aiutarti?"
+    - "Sono un assistente per il triage reumatico, e il mio ruolo è affiancare i medici di medicina generale nella valutazione delle patologie reumatologiche e nell'eventuale invio a uno specialista. Come posso esserti di supporto?"
+    - "OrientaMed è un servizio è dedicato al triage reumatico, per assistere i medici di base nella gestione delle patologie reumatologiche e nell'indirizzamento dei pazienti verso il reumatologo per un'adeguata consulenza specialistica. In cosa posso esserti utile?"
   examples:
     - "Quali sono i fattori da considerare per la polimialgia reumatica?"
     - "Il mio paziente presenta lombalgia che dura da più di 3 mesi. Questo è un parametro rilevante per diagnosticare la spondiloartrite assiale (SpA)?"

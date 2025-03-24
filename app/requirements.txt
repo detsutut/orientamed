@@ -12,3 +12,5 @@ libmagic
 pyyaml
 plotly>=6
 gradio_modal
+matplotlib
+dayplot

@@ -16,9 +16,10 @@ import re
 import io
 from PIL import Image
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from gradio_modal import Modal
+import dayplot as dp
 
 # Define the parser
 parser = argparse.ArgumentParser()
@@ -213,7 +214,6 @@ def get_usage_stats():
         "cumulative_output_tokens_per_day": cumulative_output_tokens_per_day
     }
 
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 def plot_cumulative_tokens():
@@ -246,31 +246,27 @@ def plot_cumulative_tokens():
 
     return fig
 
-def plot_cumulative_tokens2():
-    """Plots cumulative token usage over time."""
+import matplotlib.pyplot as plt
+def plot_cumulative_tokens_heatmap():
+    """Plots cumulative token usage over time with stacked bars for input and output tokens and a line for total cumulative tokens using Plotly."""
     stats = get_usage_stats()
     if not stats["cumulative_tokens_per_day"]:
         logger.warning("No data to plot.")
         return
 
     dates = [datetime.fromisoformat(d) for _, d in stats["cumulative_tokens_per_day"]]
-    token_counts = [t for t, _ in stats["cumulative_tokens_per_day"]]
-    input_tokens = [t for t, _ in stats["cumulative_input_tokens_per_day"]]
-    output_tokens = [t for t, _ in stats["cumulative_output_tokens_per_day"]]
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(dates, input_tokens, color="royalblue", label="Cumulative Input Tokens")
-    ax.bar(dates, output_tokens, color="lightsalmon", bottom=input_tokens, label="Cumulative Output Tokens")
-    ax.plot(dates, token_counts, marker="o", linestyle="-", color="darkslategrey", label="Cumulative Tokens")
-
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Total Tokens")
-    ax.set_title("Cumulative Token Usage Over Time")
-    ax.tick_params(axis='x', rotation=45)
-    ax.legend()
-    ax.grid()
+    total_tokens = [t for t, _ in stats["cumulative_tokens_per_day"]]
+    fig, ax = plt.subplots(figsize=(15, 6))
+    dp.calendar(
+        dates,
+        total_tokens,
+        start_date=datetime.now() - timedelta(days=365),
+        end_date=datetime.now(),
+        ax=ax,
+    )
 
     return fig
+
 
 LOG_FILE = "logs/usage_log.json"
 
@@ -390,17 +386,26 @@ def onload(disclaimer_seen:bool, request: gr.Request):
         "query_params":dict(request.query_params)
     }
     logger.debug(f"Login details: {logging_info}")
+    admin_priviledges = request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR")
     if not disclaimer_seen:
         modal_visible = True
         disclaimer_seen = True
     else:
         modal_visible = False
-    return [request.username == dotenv_values(GRADIO_SECRETS).get("GRADIO_ADMNUSR"),Modal(visible=modal_visible),disclaimer_seen]
+    return [admin_priviledges,
+            Modal(visible=modal_visible),
+            disclaimer_seen,
+            gr.Checkbox(interactive=admin_priviledges),
+            gr.Checkbox(interactive=admin_priviledges)]
 
 
 def toggle_interactivity(is_admin):
     logger.debug("Updating admin functionalities")
-    return [gr.UploadButton(file_count="single", interactive=is_admin),gr.Tab("Stats", visible=is_admin)]
+    return [gr.UploadButton(file_count="single", interactive=is_admin),
+            gr.Tab("Stats", visible=is_admin),
+            gr.Checkbox(interactive=is_admin),
+            gr.Checkbox(interactive=is_admin)
+            ]
 
 def update_stats():
     stats_plot = gr.Plot(plot_cumulative_tokens())
@@ -431,6 +436,8 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
     gr.Markdown(f"<center><h1 style=\042font-size:2.7em; font-family: 'Funnel Display', sans-serif;\042><sup style='color: #61e9b7; font-size:1em;'>+</sup>OrientaMed<span style='color: #61e9b7; font-size:1em;'> .</span></h1></center>")
     admin_state = gr.State(False)
     disclaimer_seen = gr.BrowserState(False)
+    kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
+    qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
     with gr.Tab("Chat"):
         history = [{"role": "assistant", "content": random.choice(config.get('gradio').get('greeting-messages'))}]
         chatbot = gr.Chatbot(history, type="messages", show_copy_button=True, layout="panel", resizable=True,
@@ -444,9 +451,12 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
                                      analytics_enabled = False,
                                      examples=[[e] for e in config.get('gradio').get('examples')],
                                      additional_inputs=[admin_state,
-                                                        gr.Checkbox(label="Usa Knowledge Base", value=True, render=False),
-                                                        gr.Checkbox(label="Usa Query Augmentation", value=False, render=False),
-                                                        gr.Textbox(label="Altre Info", placeholder="Inserisci qui altre informazioni utili", render=False)],
+                                                        kb,
+                                                        qa,
+                                                        gr.Textbox(label="Procedure interne, protocolli, anamnesi da affiancare alle linee guida",
+                                                                   placeholder="Inserisci qui eventuali procedure interne, protocolli o informazioni aggiuntive riguardanti il paziente. Queste informazioni verranno affiancate alle linee guida nell'elaborazione della risposta.",
+                                                                   lines=2,
+                                                                   render=False)],
                                      additional_inputs_accordion="Opzioni",
                                      )
         download_btn = gr.Button("Scarica la conversazione", variant='secondary')
@@ -486,13 +496,14 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
             btn = gr.Button("Confirm")
     with gr.Tab("Stats", visible=False) as stats_tab:
         with gr.Group():
-            stats_plot = gr.Plot(plot_cumulative_tokens())
             stats = get_usage_stats()
             with gr.Row():
                 stats_users = gr.Textbox(label="Total users", value=f"{stats['total_users']}", interactive=False)
                 stats_input = gr.Textbox(label="Average user input [tokens/dd]", value=f"{stats['avg_input_tokens_per_user_per_day']}", interactive=False)
                 stats_output = gr.Textbox(label="Average user output [tokens/dd]", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
                 stats_ratio = gr.Textbox(label="Input/Output ratio", value=f"{round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)}", interactive=False)
+            stats_plot = gr.Plot(plot_cumulative_tokens())
+            stats_heat = gr.Plot(plot_cumulative_tokens_heatmap())
         with gr.Group():
             gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(rag.get_image())))
 
@@ -500,9 +511,9 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
     upload_button.upload(upload_file, upload_button, None)
     mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
-    admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab])
+    admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
     stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, stats_users, stats_input, stats_output, stats_ratio] )
-    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen])
+    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen,kb,qa])
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
             auth=token_auth,
