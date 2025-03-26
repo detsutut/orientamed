@@ -6,8 +6,7 @@ import gradio as gr
 import os
 import logging
 
-from numpy.ma.core import maximum
-
+import numpy as np
 from rags import Rag
 from dotenv import dotenv_values
 import yaml
@@ -414,18 +413,76 @@ def toggle_interactivity(is_admin):
             ]
 
 def update_stats():
-    stats_plot = gr.Plot(plot_cumulative_tokens())
     stats = get_usage_stats()
-    return [stats_plot, stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day'], round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)]
+    return [gr.Plot(plot_cumulative_tokens()), gr.Plot(get_eval_stats_plot()), stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day'], round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)]
 
 custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
 
+def get_eval_stats_plot():
+    # Initialize distribution stats for 'values' fields
+    if not os.path.exists("logs/evaluations.jsonl"):
+        return []
+
+    values_distributions = defaultdict(list)
+
+    # Process the 'values' field again to get distributions
+    with open("logs/evaluations.jsonl", "r", encoding="utf-8") as file:
+        for line in file:
+            try:
+                data = json.loads(line.strip())
+                if "evaluation" in data and isinstance(data["evaluation"], dict):
+                    for key, value in data["evaluation"].items():
+                        values_distributions[key].append(value)
+                values_distributions["liked (bool)"].append(int(eval(data["liked"]))*5) #convert bool to int and from 0-1 to 0-5
+            except json.JSONDecodeError:
+                continue
+
+    numeric_data = {key: values for key, values in values_distributions.items() if all(isinstance(v, (int, float)) or v is None for v in values)}
+
+    # Compute means and standard deviations
+    categories = list(numeric_data.keys())
+    means = [np.mean([v for v in values if (v is not None and v>=0)]) for values in numeric_data.values()]
+    stds = [np.std([v for v in values if (v is not None and v>=0)]) for values in numeric_data.values()]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=means,
+        error_y=dict(type='data', array=stds, visible=True),
+        marker_color='#10b981'
+    ))
+    fig.update_layout(
+        title="Evaluation statistics",
+        xaxis_title="Categories",
+        yaxis_title="Mean and Standard Deviation",
+        template="plotly_white"
+    )
+    return fig
+
+    with open("logs/evaluations.jsonl", "r", encoding="utf-8") as file:
+        for i, line in enumerate(file):
+            try:
+                data = json.loads(line.strip())
+                stats["total_records"] += 1
+
+                # Track key occurrences
+                for key in data.keys():
+                    if key not in stats["keys_frequency"]:
+                        stats["keys_frequency"][key] = 0
+                    stats["keys_frequency"][key] += 1
+
+                # Collect sample records
+                if i < 3:
+                    stats["sample_records"].append(data)
+
+            except json.JSONDecodeError:
+                continue
 def _export(history):
     with open('logs/chat_history.txt', 'w') as f:
         f.write(str(history))
     return 'logs/chat_history.txt'
 
-with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden} #eval1 {background-color: #dfe7fd} #eval2 {background-color: #e2ece9} #eval3 {background-color: #fff1e6} div:has(> #citations_eval) {border:none; box-shadow:none} #citations_eval textarea {font-size: 0.8em} #eval_main_text {text-align: center} #eval_main_text textarea {font-size:1.2em}", head="""<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Funnel+Display&display=swap" rel="stylesheet">""") as demo:
+with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden} #eval_button_submit {color:white} #eval1 {background-color: #dfe7fd} #eval1 fieldset {text-align: center} #eval1 fieldset div {justify-content:center} #eval1 fieldset label {--checkbox-background-color-selected: #7197ff; --checkbox-label-background-fill-selected: #eef3ff; --checkbox-label-background-fill: #dfe7fd; --checkbox-label-border-color-selected: #eef3ff; --checkbox-label-border-color: #dfe7fd; --checkbox-label-background-fill-hover: #eef3ff; --checkbox-background-color-hover:#7197ff} #eval2 {background-color: #e2ece9} #eval2 input {--slider-color: rgb(164 213 199); --input-background-fill:#e2ece9; --neutral-200:#e2ece9} #eval3 {background-color: #fff1e6} #eval3 input {--slider-color: #fbbb65; --input-background-fill:#fff1e6; --neutral-200:#fff1e6} div:has(> #citations_eval) {border:none; box-shadow:none} #citations_eval textarea {font-size: 0.8em} #eval_main_text {text-align: center} #eval_main_text textarea {font-size:1.2em; background-color:#ffffff00}", head="""<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Funnel+Display&display=swap" rel="stylesheet">""") as demo:
     with Modal(visible=False) as modal:
         gr.Markdown("""### ⚠️ Disclaimer / Avviso  
 
@@ -453,27 +510,27 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Accordion("Medical Accuracy", open=True, elem_id="eval1"):
-                    ma1=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Question Comprehension")
-                    ma2=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Logical Reasoning")
-                    ma3=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Alignment with Clinical Guidelines")
-                    ma4=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Completeness")
-                with gr.Accordion("Safety", open=True, elem_id="eval2"):
-                    sa1=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Possibility of Harm")
-                    sa2=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Extent of Possible harm")
+                    ma1=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, value=None, label="Question Comprehension", info="1 = Misunderstood, 5 = Understood")
+                    ma2=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, value=None, label="Logical Reasoning", info="1 = Illogical, 5 = Logical")
+                    ma3=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, value=None, label="Alignment with Clinical Guidelines", info="1 = Not Aligned, 5 = Aligned")
+                    ma4=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, value=None, label="Completeness", info="1 = Incomplete, 5 = Complete")
+                with gr.Accordion("Safety", open=False, elem_id="eval2"):
+                    sa1=gr.Slider(minimum=1, maximum=5, step=1, value=-1, show_reset_button=False, interactive=True, label="Possibility of Harm", info="1 = Low, 5 = High")
+                    sa2=gr.Slider(minimum=1, maximum=5, step=1, value=-1, show_reset_button=False, interactive=True, label="Extent of Possible harm", info="1 = No Harm, 5 = Severe Harm")
                 with gr.Accordion("Communication", open=False, elem_id="eval3"):
-                    co1=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Tone")
-                    co2=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Coherence")
-                    co3=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Helpfulness")
+                    co1=gr.Slider(minimum=1, maximum=5, step=1, value=-1, show_reset_button=False, interactive=True, label="Tone", info="1 = Inappropriate, 5 = Appropriate")
+                    co2=gr.Slider(minimum=1, maximum=5, step=1, value=-1, show_reset_button=False, interactive=True, label="Coherence", info="1 = Incoherent, 5 = Coherent")
+                    co3=gr.Slider(minimum=1, maximum=5, step=1, value=-1, show_reset_button=False, interactive=True, label="Helpfulness", info="1 = Unhelpful, 5 = Helpful")
             with gr.Column(scale=2):
                 with gr.Accordion("Citations",open=False) as ec_cit_accordion:
                     ec_citations = gr.Textbox(label="Citations", placeholder="No citations", lines=10, show_label=False, interactive=True, elem_id="citations_eval")
                 cm = gr.Textbox(label="Comments", info="Write your comments here. What could be improved? How?", interactive=True, lines=5)
                 tb = gr.Textbox(label="Your answer", info="How would you answer instead? You can copy and paste the original text here to add or edit info or completely rewrite it from scratch.", interactive=True, lines=5)
-                submiteval_btn = gr.Button("SUBMIT", variant="primary")
+                submiteval_btn = gr.Button("SUBMIT", variant="primary", elem_id="eval_button_submit")
 
     eval_components = [("question_comprehension",ma1), ("logical",ma2), ("guidelines_aligment",ma3),
                        ("completeness",ma4),("harm",sa1),("harm_extent", sa2), ("tone",co1),
-                       ("coherence",co2),("helpfulness",co3),("highlights",ec_main_text),("citations",ec_citations),("comments",cm),("answer",tb)]
+                       ("coherence",co2),("helpfulness",co3),("main_text",ec_main_text),("citations",ec_citations),("comments",cm),("answer",tb)]
 
     evalmodal.blur(lambda: [None]*len(eval_components), outputs=[t[1] for t in eval_components])
 
@@ -523,6 +580,8 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
             return not double_log_flag
 
         def open_modal(data: gr.LikeData):
+            if data.liked=="":
+                return ["","","",gr.Accordion(open=False),Modal(visible=False)]
             if len(data.value)>1:
                 citations = "\n".join(data.value[1:])
             else:
@@ -531,7 +590,7 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
 
         interface.chatbot.like(open_modal, outputs=[like_dislike_state, ec_main_text, ec_citations, ec_cit_accordion, evalmodal])
 
-        def test(*args):
+        def usereval(*args):
             global eval_components
             session = args[-1]
             data = {"ip": session["ip"],
@@ -541,11 +600,11 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
                     "liked": args[-3],
                     "evaluation":dict(zip([c[0] for c in eval_components], args[:-3])),
                     "conversation":json.dumps(args[-2])}
-            with open("logs/mytest.jsonl","a") as file:
+            with open("logs/evaluations.jsonl","a") as file:
                 file.write(json.dumps(data) + '\n')
             return [None]*len(args[:-3])+[Modal(visible=False)]
 
-        submiteval_btn.click(test, [t[1] for t in eval_components]+[like_dislike_state,chatbot,session_state], [t[1] for t in eval_components]+[evalmodal])
+        submiteval_btn.click(usereval, [t[1] for t in eval_components]+[like_dislike_state,chatbot,session_state], [t[1] for t in eval_components]+[evalmodal])
 
     with gr.Tab("Settings") as settings:
         with gr.Group():
@@ -565,7 +624,9 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
                 stats_input = gr.Textbox(label="Average user input [tokens/dd]", value=f"{stats['avg_input_tokens_per_user_per_day']}", interactive=False)
                 stats_output = gr.Textbox(label="Average user output [tokens/dd]", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
                 stats_ratio = gr.Textbox(label="Input/Output ratio", value=f"{round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)}", interactive=False)
-            stats_plot = gr.Plot(plot_cumulative_tokens())
+            with gr.Row():
+                stats_plot = gr.Plot(plot_cumulative_tokens())
+                eval_plot = gr.Plot(get_eval_stats_plot())
             stats_heat = gr.Plot(plot_daily_tokens_heatmap())
         with gr.Group():
             gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(rag.get_image())))
@@ -575,7 +636,7 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
     mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
-    stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, stats_users, stats_input, stats_output, stats_ratio] )
+    stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, eval_plot, stats_users, stats_input, stats_output, stats_ratio] )
     demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen,kb,qa,session_state])
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
