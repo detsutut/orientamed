@@ -5,8 +5,9 @@ import boto3
 import gradio as gr
 import os
 import logging
-
+import plotly.graph_objects as go
 import numpy as np
+import matplotlib.pyplot as plt
 from rags import Rag
 from dotenv import dotenv_values
 import yaml
@@ -217,8 +218,6 @@ def get_usage_stats():
         "daily_totals": daily_totals,
     }
 
-import plotly.graph_objects as go
-
 def plot_cumulative_tokens():
     """Plots cumulative token usage over time with stacked bars for input and output tokens and a line for total cumulative tokens using Plotly."""
     stats = get_usage_stats()
@@ -249,7 +248,7 @@ def plot_cumulative_tokens():
 
     return fig
 
-import matplotlib.pyplot as plt
+
 def plot_daily_tokens_heatmap():
     """Plots cumulative token usage over time with stacked bars for input and output tokens and a line for total cumulative tokens using Plotly."""
     stats = get_usage_stats()
@@ -421,7 +420,8 @@ custom_theme = gr.themes.Ocean().set(body_background_fill="linear-gradient(to ri
 def get_eval_stats_plot():
     # Initialize distribution stats for 'values' fields
     if not os.path.exists("logs/evaluations.jsonl"):
-        return []
+        logger.warning("No data to plot.")
+        return
 
     values_distributions = defaultdict(list)
 
