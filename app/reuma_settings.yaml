@@ -10,12 +10,6 @@ gradio:
   avatar-img: './assets/dot.gif'
   logo-img: './assets/a.png'
   flagging-options:
-    - "Contenuto errato"
-    - "Contenuto basato su fonti errate"
-    - "Contenuto non informativo"
-    - "Contenuto ambiguo"
-    - "Contenuto incompleto"
-    - "Altro"
   greeting-messages:
     - "Sono un assistente per il triage reumatico. Il mio compito è assistere i medici di medicina generale nella valutazione delle patologie di interesse reumatologico e dell'eventuale invio all'attenzione di uno specialista. Come posso aiutarti?"
     - "Sono un assistente per il triage reumatico. Supporto i medici di base nella valutazione dell'invio dei pazienti reumatici al reumatologo ospedaliero per effettuare prime visite ma per ottimizzare la co-gestione del paziente già in trattamento. In che modo posso esserti utile?"

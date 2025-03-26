@@ -5,6 +5,9 @@ import boto3
 import gradio as gr
 import os
 import logging
+
+from numpy.ma.core import maximum
+
 from rags import Rag
 from dotenv import dotenv_values
 import yaml
@@ -211,7 +214,8 @@ def get_usage_stats():
         "avg_output_tokens_per_user_per_day": round(avg_output_tokens_per_user_per_day),
         "cumulative_tokens_per_day": cumulative_tokens_per_day,
         "cumulative_input_tokens_per_day": cumulative_input_tokens_per_day,
-        "cumulative_output_tokens_per_day": cumulative_output_tokens_per_day
+        "cumulative_output_tokens_per_day": cumulative_output_tokens_per_day,
+        "daily_totals": daily_totals,
     }
 
 import plotly.graph_objects as go
@@ -247,15 +251,15 @@ def plot_cumulative_tokens():
     return fig
 
 import matplotlib.pyplot as plt
-def plot_cumulative_tokens_heatmap():
+def plot_daily_tokens_heatmap():
     """Plots cumulative token usage over time with stacked bars for input and output tokens and a line for total cumulative tokens using Plotly."""
     stats = get_usage_stats()
-    if not stats["cumulative_tokens_per_day"]:
+    if not stats["daily_totals"]:
         logger.warning("No data to plot.")
         return
 
-    dates = [datetime.fromisoformat(d) for _, d in stats["cumulative_tokens_per_day"]]
-    total_tokens = [t for t, _ in stats["cumulative_tokens_per_day"]]
+    dates = stats["daily_totals"].keys()
+    total_tokens = [t[0]+t[1] for _, t in stats["daily_totals"].items()]
     fig, ax = plt.subplots(figsize=(15, 6))
     dp.calendar(
         dates,
@@ -264,6 +268,7 @@ def plot_cumulative_tokens_heatmap():
         end_date=datetime.now(),
         ax=ax,
     )
+    fig.tight_layout()
 
     return fig
 
@@ -396,7 +401,8 @@ def onload(disclaimer_seen:bool, request: gr.Request):
             Modal(visible=modal_visible),
             disclaimer_seen,
             gr.Checkbox(interactive=admin_priviledges),
-            gr.Checkbox(interactive=admin_priviledges)]
+            gr.Checkbox(interactive=admin_priviledges),
+            logging_info]
 
 
 def toggle_interactivity(is_admin):
@@ -419,7 +425,7 @@ def _export(history):
         f.write(str(history))
     return 'logs/chat_history.txt'
 
-with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden}", head="""<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Funnel+Display&display=swap" rel="stylesheet">""") as demo:
+with gr.Blocks(title="OrientaMed", theme=custom_theme, css="footer {visibility: hidden} #eval1 {background-color: #dfe7fd} #eval2 {background-color: #e2ece9} #eval3 {background-color: #fff1e6} div:has(> #citations_eval) {border:none; box-shadow:none} #citations_eval textarea {font-size: 0.8em} #eval_main_text {text-align: center} #eval_main_text textarea {font-size:1.2em}", head="""<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Funnel+Display&display=swap" rel="stylesheet">""") as demo:
     with Modal(visible=False) as modal:
         gr.Markdown("""### ⚠️ Disclaimer / Avviso  
 
@@ -438,6 +444,39 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
     disclaimer_seen = gr.BrowserState(False)
     kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
     qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
+    session_state =gr.State()
+
+    with Modal(visible=False) as evalmodal:
+        like_dislike_state = gr.State("")
+        with gr.Row():
+            ec_main_text = gr.Textbox(label="Message", info="Text under evaluation", lines=2, interactive=False, elem_id="eval_main_text")
+        with gr.Row():
+            with gr.Column(scale=1):
+                with gr.Accordion("Medical Accuracy", open=True, elem_id="eval1"):
+                    ma1=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Question Comprehension")
+                    ma2=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Logical Reasoning")
+                    ma3=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Alignment with Clinical Guidelines")
+                    ma4=gr.Radio(choices=[1, 2, 3, 4, 5], interactive=True, label="Completeness")
+                with gr.Accordion("Safety", open=True, elem_id="eval2"):
+                    sa1=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Possibility of Harm")
+                    sa2=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Extent of Possible harm")
+                with gr.Accordion("Communication", open=False, elem_id="eval3"):
+                    co1=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Tone")
+                    co2=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Coherence")
+                    co3=gr.Slider(minimum=1, maximum=5, step=1, interactive=True, label="Helpfulness")
+            with gr.Column(scale=2):
+                with gr.Accordion("Citations",open=False) as ec_cit_accordion:
+                    ec_citations = gr.Textbox(label="Citations", placeholder="No citations", lines=10, show_label=False, interactive=True, elem_id="citations_eval")
+                cm = gr.Textbox(label="Comments", info="Write your comments here. What could be improved? How?", interactive=True, lines=5)
+                tb = gr.Textbox(label="Your answer", info="How would you answer instead? You can copy and paste the original text here to add or edit info or completely rewrite it from scratch.", interactive=True, lines=5)
+                submiteval_btn = gr.Button("SUBMIT", variant="primary")
+
+    eval_components = [("question_comprehension",ma1), ("logical",ma2), ("guidelines_aligment",ma3),
+                       ("completeness",ma4),("harm",sa1),("harm_extent", sa2), ("tone",co1),
+                       ("coherence",co2),("helpfulness",co3),("highlights",ec_main_text),("citations",ec_citations),("comments",cm),("answer",tb)]
+
+    evalmodal.blur(lambda: [None]*len(eval_components), outputs=[t[1] for t in eval_components])
+
     with gr.Tab("Chat"):
         history = [{"role": "assistant", "content": random.choice(config.get('gradio').get('greeting-messages'))}]
         chatbot = gr.Chatbot(history, type="messages", show_copy_button=True, layout="panel", resizable=True,
@@ -482,7 +521,31 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
                         writer.writerow(["conversation", "message", "index", "flag", "host",  "username", "timestamp"])
                     writer.writerow(gr.utils.sanitize_list_for_csv(csv_data))
             return not double_log_flag
-        interface.chatbot.like(manual_logger, [chatbot, double_log_flag], double_log_flag)
+
+        def open_modal(data: gr.LikeData):
+            if len(data.value)>1:
+                citations = "\n".join(data.value[1:])
+            else:
+                citations = ""
+            return [str(data.liked), gr.Textbox(value=data.value[0]), gr.Textbox(value=citations), gr.Accordion(open=False), Modal(visible=True)]
+
+        interface.chatbot.like(open_modal, outputs=[like_dislike_state, ec_main_text, ec_citations, ec_cit_accordion, evalmodal])
+
+        def test(*args):
+            global eval_components
+            session = args[-1]
+            data = {"ip": session["ip"],
+                    "username": session["username"],
+                    "session_hash": session["session_hash"],
+                    "timestamp": str(datetime.now()),
+                    "liked": args[-3],
+                    "evaluation":dict(zip([c[0] for c in eval_components], args[:-3])),
+                    "conversation":json.dumps(args[-2])}
+            with open("logs/mytest.jsonl","a") as file:
+                file.write(json.dumps(data) + '\n')
+            return [None]*len(args[:-3])+[Modal(visible=False)]
+
+        submiteval_btn.click(test, [t[1] for t in eval_components]+[like_dislike_state,chatbot,session_state], [t[1] for t in eval_components]+[evalmodal])
 
     with gr.Tab("Settings") as settings:
         with gr.Group():
@@ -503,7 +566,7 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
                 stats_output = gr.Textbox(label="Average user output [tokens/dd]", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
                 stats_ratio = gr.Textbox(label="Input/Output ratio", value=f"{round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)}", interactive=False)
             stats_plot = gr.Plot(plot_cumulative_tokens())
-            stats_heat = gr.Plot(plot_cumulative_tokens_heatmap())
+            stats_heat = gr.Plot(plot_daily_tokens_heatmap())
         with gr.Group():
             gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(rag.get_image())))
 
@@ -513,7 +576,7 @@ Le conversazioni effettuate utilizzando questo strumento di intelligenza artific
     btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
     stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, stats_users, stats_input, stats_output, stats_ratio] )
-    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen,kb,qa])
+    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen,kb,qa,session_state])
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
             auth=token_auth,
