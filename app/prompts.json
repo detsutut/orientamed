@@ -98,5 +98,15 @@
       "role": "human",
       "content": "Note cliniche:\n{notes}"
     }
+  ],
+  "query_expansion": [
+    {
+      "role": "system",
+      "content": "You are a healthcare expert. Answer the following question and give the rationale when answering. Answer in Italian."
+    },
+    {
+      "role": "human",
+      "content": "Domanda:\n{question}"
+    }
   ]
 }

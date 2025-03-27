@@ -1,0 +1,139 @@
+:root {
+  --blue1: #eef3ff;
+  --blue2: #dfe7fd;
+  --blue3: #7197ff;
+  --green1: #e2ece9;
+  --green2: rgb(164 213 199);
+  --orange1: #fff1e6;
+  --orange2: #fbbb65;
+}
+
+.wrap.svelte-1ogxbi0 {
+    background: transparent;
+}
+
+.avatar-container{
+    overflow: hidden;
+}
+
+button[title="Retry"]{
+    display: none;
+}
+
+button[title="Clear"]{
+    display: none;
+}
+
+[placeholder="Type a message..."]{
+    background:transparent;
+}
+
+button[title="Undo"]{
+    display: none;
+}
+
+h1.logo{
+    font-size:2.7em;
+    font-family: 'Funnel Display', sans-serif;
+    transition: transform 0.3s ease-in-out;
+    display: inline-block;
+}
+
+sup.logo, sub.logo, span.logo{
+    color: #61e9b7;
+    font-size:1em;
+}
+
+.logo sup {
+  display: inline-block;
+  transition: transform 0.3s ease-in-out;
+}
+
+.logo:hover sup {
+  transform: rotate(15deg);
+    color: #2eb8e8;
+}
+
+.logo span {
+    padding-left: 5px;
+  display: inline-block;
+  transition: transform 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+.logo:hover span {
+  transform: translateX(10px);
+  color: #2eb8e8; /* Change this to match your theme */
+}
+
+h1 #logo{
+    font-size:2.7em;
+    font-family: 'Funnel Display', sans-serif;
+}
+
+footer {
+    visibility: hidden
+}
+
+#eval_button_submit {
+    color: white
+}
+
+#eval1 {
+    background-color: var(--blue2)
+}
+
+#eval1 fieldset {
+    text-align: center
+}
+
+#eval1 fieldset div {
+    justify-content: center
+}
+
+#eval1 fieldset label {
+    --checkbox-background-color-selected: var(--blue3);
+    --checkbox-label-background-fill-selected: var(--blue1);
+    --checkbox-label-background-fill: var(--blue2);
+    --checkbox-label-border-color-selected: var(--blue1);
+    --checkbox-label-border-color: var(--blue2);
+    --checkbox-label-background-fill-hover: var(--blue1);
+    --checkbox-background-color-hover: var(--blue3)
+}
+
+#eval2 {
+    background-color: var(--green1)
+}
+
+#eval2 input {
+    --slider-color: var(--green2);
+    --input-background-fill: var(--green1);
+    --neutral-200: var(--green1)
+}
+
+#eval3 {
+    background-color: var(--orange1)
+}
+
+#eval3 input {
+    --slider-color: var(--orange2);
+    --input-background-fill: var(--orange1);
+    --neutral-200: var(--orange1)
+}
+
+div:has(> #citations_eval) {
+    border: none;
+    box-shadow: none
+}
+
+#citations_eval textarea {
+    font-size: 0.8em
+}
+
+#eval_main_text {
+    text-align: center
+}
+
+#eval_main_text textarea {
+    font-size: 1.2em;
+    background-color: #ffffff00
+}
