@@ -141,7 +141,7 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
             for i, document in enumerate(retrieved_documents):
                 source = os.path.basename(document.metadata.get("source", ""))
                 content = document.page_content
-                doc_string = f"[{i}] **{source}** - *\"{textwrap.shorten(content,500)}\"* (Confidenza: {dot_progress_bar(retrieved_scores[i])})"
+                doc_string = f"[{i+1}] **{source}** - *\"{textwrap.shorten(content,500)}\"* (Confidenza: {dot_progress_bar(retrieved_scores[i])})"
                 citations.update({i: {"source":source, "content":content}})
                 citations_str += ("- "+doc_string+"\n")
             return [gr.ChatMessage(role="assistant", content=answer),
@@ -261,8 +261,9 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                                                         kb,
                                                         qa,
                                                         gr.Textbox(label="Procedure interne, protocolli, anamnesi da affiancare alle linee guida",
-                                                                   placeholder="Inserisci qui eventuali procedure interne, protocolli o informazioni aggiuntive riguardanti il paziente. Queste informazioni verranno affiancate alle linee guida nell'elaborazione della risposta.",
-                                                                   lines=2,
+                                                                   info="Queste informazioni verranno affiancate alle linee guida nell'elaborazione della risposta e citate con il numero [0].",
+                                                                   placeholder="Inserisci qui eventuali procedure interne, protocolli o informazioni aggiuntive riguardanti il paziente.",
+                                                                   lines=4,
                                                                    render=False)],
                                      additional_inputs_accordion=gr.Accordion(label="Opzioni", open=False, elem_id="options"),
                                      )
