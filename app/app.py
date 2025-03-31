@@ -115,7 +115,8 @@ def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
 
 def reply(message, history, is_admin, enable_rag, query_aug, additional_context, request: gr.Request):
     global RAG
-    is_banned = check_ban(request.client.host) if not is_admin else False
+    admin_or_test = is_admin and request.username=="test"
+    is_banned = check_ban(request.client.host) if not admin_or_test else False #don't check if admin or testing
     if is_banned:
         logger.error("exceeded daily usage limit!")
         gr.Error("Error: exceeded daily usage limit")
