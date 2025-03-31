@@ -325,6 +325,9 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                 stats_plot = gr.Plot(plot_cumulative_tokens())
                 eval_plot = gr.Plot(get_eval_stats_plot())
             stats_heat = gr.Plot(plot_daily_tokens_heatmap())
+            with gr.Row():
+                usage_log_btn = gr.DownloadButton("Usage Log Download", value="logs/usage_log.json")
+                evaluation_log_btn = gr.DownloadButton("Evaluations Download", value="logs/evaluations.jsonl")
         with gr.Group():
             gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(RAG.get_image())))
 
