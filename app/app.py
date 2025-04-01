@@ -196,7 +196,7 @@ def onload(disclaimer_seen:bool, request: gr.Request):
 def toggle_interactivity(is_admin):
     logger.debug("Updating admin functionalities")
     return [gr.UploadButton(file_count="single", interactive=is_admin),
-            gr.Tab("Stats", visible=is_admin),
+            gr.Tab("Admin Panel", visible=is_admin),
             gr.Checkbox(interactive=is_admin),
             gr.Checkbox(interactive=is_admin)
             ]
