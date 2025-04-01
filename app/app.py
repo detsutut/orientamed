@@ -312,9 +312,9 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                             interactive=False)
             upload_button = gr.UploadButton(file_count="single", interactive=admin_state.value)
         with gr.Group():
-            mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456")
+            mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456", type="password")
             btn = gr.Button("Confirm")
-    with gr.Tab("Stats", visible=False) as stats_tab:
+    with gr.Tab("Admin Panel", visible=False) as stats_tab:
         with gr.Group():
             stats = get_usage_stats()
             with gr.Row():
