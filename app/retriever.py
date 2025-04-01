@@ -68,6 +68,6 @@ class Retriever:
     def retrieve_diverse(self, query: str, n=10) -> List[Document]:
         return self.vector_store.max_marginal_relevance_search(query, k=n, fetch_k=n*10)
 
-    def retrive_with_scores(self, query:str, n=5, score_threshold=0.5) -> List[Tuple[Document, float]]:
+    def retrieve_with_scores(self, query:str, n=5, score_threshold=0.5) -> List[Tuple[Document, float]]:
         docs_retrieved = [doc for doc in self.vector_store.similarity_search_with_score(query, k=n) if doc[1]>=score_threshold]
         return [doc[0] for doc in docs_retrieved], [doc[1] for doc in docs_retrieved]

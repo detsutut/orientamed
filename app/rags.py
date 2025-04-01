@@ -96,7 +96,7 @@ class Rag:
 
     def doc_retriever(self, state: State) -> Command[Literal["generator", END]]:
         logger.debug(f"New retrieval: {state}")
-        retrieved_docs, scores = self.retriever.retrive_with_scores(state["question"], n=10, score_threshold=0.6)
+        retrieved_docs, scores = self.retriever.retrieve_with_scores(state["question"], n=10, score_threshold=0.6)
         logger.debug(f"Retrieved docs: {retrieved_docs}")
         additional_context = state.get("additional_context", None)
         if len(retrieved_docs) == 0 and (type(additional_context) is not str or additional_context == ""):
