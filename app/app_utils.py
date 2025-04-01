@@ -30,7 +30,6 @@ def token_auth(username: str, password: str):
             if check_user and check_password:
                 return True
         return False
-    return False
 
 def get_mfa_response(mfa_token, duration: int = 900):
     logger.debug("Checking MFA token...")
@@ -44,8 +43,8 @@ def get_mfa_response(mfa_token, duration: int = 900):
                                                 SerialNumber=dotenv_values(AWS_SECRETS).get("AWS_ARN_MFA_DEVICE"),
                                                 TokenCode=mfa_token)
         return response
-    except Exception as e:
-        logger.error(str(e))
+    except Exception as exc:
+        logger.error(str(exc))
         return None
 
 def dot_progress_bar(score, total_dots=7):
