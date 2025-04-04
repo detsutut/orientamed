@@ -5,11 +5,7 @@ import boto3
 import gradio as gr
 import os
 import logging
-
-from gradio.layouts.accordion import Accordion
-
 from rags import Rag
-from dotenv import dotenv_values
 import yaml
 import random
 from boto3 import Session
@@ -21,10 +17,6 @@ import argparse
 from datetime import datetime
 from gradio_modal import Modal
 
-############# LOCAL IMPORTS ##################
-from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
-from app_utils import get_mfa_response, token_auth, dot_progress_bar, get_admin_username, from_list_to_messages
-
 ############# CLI ARGUMENTS ##################
 parser = argparse.ArgumentParser()
 parser.add_argument('--settings', action="store", dest='settings_file', default='settings.yaml')
@@ -35,8 +27,9 @@ parser.add_argument('--local', action="store", dest='local', default=False, type
 args = parser.parse_args()
 
 ############# LOGGER ##################
-logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
 
 ############# LOAD CONFIGS ##################
 with open(args.settings_file) as stream:
@@ -48,6 +41,10 @@ with open("gui_settings.yaml") as stream:
 ############# CHANGE DIRECTORY ##################
 wd = os.path.abspath(os.path.dirname(args.settings_file))
 os.chdir(wd)
+
+############# LOCAL IMPORTS ##################
+from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
+from app_utils import get_mfa_response, token_auth, dot_progress_bar, get_admin_username, from_list_to_messages
 
 ############# GLOBAL VARIABLES ##################
 LOG_STAT_FILE = "logs/token_usage.json"
@@ -135,6 +132,13 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
             update_usage_log(request.client.host, input_tokens_count+output_tokens_count*4, False)
             log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
             answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
+            ###
+            concepts_str = ""
+            retrieved_concepts = response["concepts"]
+            for concept in retrieved_concepts:
+                concept_string = f"**{concept['name'].upper()}**: {concept['semantic_tags']} ({dot_progress_bar(concept['match_score']/100)})"
+                concepts_str += ("- "+concept_string+"\n")
+            ###
             citations = {}
             citations_str = ""
             retrieved_documents = response["context"]["docs"]
@@ -145,7 +149,21 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
                 doc_string = f"[{i+1}] **{source}** - *\"{textwrap.shorten(content,500)}\"* (Confidenza: {dot_progress_bar(retrieved_scores[i])})"
                 citations.update({i: {"source":source, "content":content}})
                 citations_str += ("- "+doc_string+"\n")
+            ###
+            kg_citations_str = ""
+            retrieved_documents = response["kg_context"]["docs"]
+            retrieved_scores = response["kg_context"]["scores"]
+            retrieved_paths = response["kg_context"]["paths"]
+            for i, document in enumerate(retrieved_documents):
+                source = os.path.basename(document.metadata.get("source", ""))
+                content = document.page_content
+                doc_string = f"[KG{i+1}] **{source}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
+                kg_citations_str += ("- "+doc_string+"\n")
             return [gr.ChatMessage(role="assistant", content=answer),
+                    gr.ChatMessage(role="assistant", content=concepts_str,
+                                   metadata={"title": "🌐 SNOMED Concepts"}),
+                    gr.ChatMessage(role="assistant", content=kg_citations_str,
+                                   metadata={"title": "🌐 Percorsi collegati"}),
                     gr.ChatMessage(role="assistant", content=citations_str,
                                 metadata={"title": "📖 Linee guida correlate"})]
         else:

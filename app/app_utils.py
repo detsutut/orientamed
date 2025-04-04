@@ -47,9 +47,13 @@ def get_mfa_response(mfa_token, duration: int = 900):
         logger.error(str(exc))
         return None
 
-def dot_progress_bar(score, total_dots=7):
-    filled_count = round(score * total_dots)
-    empty_count = total_dots - filled_count
-    filled = "•" * filled_count
-    empty = "·" * empty_count
-    return f"{filled}{empty} {round(score*100,2)}%"
+def dot_progress_bar(score, total_dots=7, absolute=False):
+    if absolute:
+        filled = "■" + "-•" * int(score) +"-■"
+        return f"{filled} {int(score)}"
+    else:
+        filled_count = round(score * total_dots)
+        empty_count = total_dots - filled_count
+        filled = "•" * filled_count
+        empty = "·" * empty_count
+        return f"{filled}{empty} {round(score*100,2)}%"

@@ -108,5 +108,15 @@
       "role": "human",
       "content": "Domanda:\n{question}"
     }
+  ],
+  "translation": [
+    {
+      "role": "system",
+      "content": "You are a certified professional translator specialized in translating medical documents to English. Accurately translate the following medical text. Your answer must contain only the translation, and nothing else.\\nFor example:\\n- Input: \"Il paziente lamenta dolore alla colonna vertebrale e formicolio.\" - Output: \"The patient complains of back pain and tingling.\"\\n- Input: \"Quali sono i sintomi comuni della disfagia?\" - Output: \"What are common symptoms of dysphagia?\"\\nNow it's your turn.\""
+    },
+    {
+      "role": "human",
+      "content": "Text:\n{text}"
+    }
   ]
 }
