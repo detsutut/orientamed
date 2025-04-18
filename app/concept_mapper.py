@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-
 import pandas as pd
 from rapidfuzz import fuzz
 from flashtext import KeywordProcessor
@@ -34,11 +33,9 @@ class SNOMEDMapper:
             self.keyword_processor.add_keyword(term)
 
     def __preprocess_FSN__(self, fsn:str):
-        semantic_tags = [tag.strip() for tag in re.findall("\((.*?)\)", fsn)]
-        term = re.sub("\(.*\)","", fsn).strip()
+        semantic_tags = [tag.strip() for tag in re.findall(r"\((.*?)\)", fsn)]
+        term = re.sub(r"\(.*\)","", fsn).strip()
         return term, semantic_tags
-
-
 
     def exact_match(self, text):
         """Find exact SNOMED term matches in the text."""
@@ -47,28 +44,26 @@ class SNOMEDMapper:
         for term in found_terms:
             concepts = self.snomed_dict[term]
             for concept in concepts:
-                matches.append({"name":term, "id": concept["concept_id"], "semantic_tags": concept["semantic_tags"], "match_score": 100})
+                matches.append({"name":term, "id": concept["concept_id"], "semantic_tags": concept["semantic_tags"], "match_score": 1.00})
         return matches
 
-    def fuzzy_match(self, text, threshold=85):
+    def fuzzy_match(self, text, threshold=0.85):
         """Find fuzzy SNOMED term matches in the text using RapidFuzz."""
         text = text.lower()
         matches = []
         for term in self.snomed_dict:
-            score = fuzz.partial_ratio(term, text)
+            score = fuzz.partial_ratio(term, text)/100
             if score >= threshold:
                 concepts = self.snomed_dict[term]
                 for concept in concepts:
                     matches.append({"name":term, "id": concept["concept_id"], "semantic_tags": concept["semantic_tags"], "match_score": score})
         return sorted(matches, key=lambda x: -x["match_score"])  # Sort by best match
 
-    def map_text_to_snomed(self, text, fuzzy_threshold=100, filter_tags=[], exclude=False, unique=False):
+    def map_text_to_snomed(self, text, fuzzy_threshold:float=1.0, filter_tags=[], exclude=False, unique=False)->List[dict]:
         """
-        Maps input text to SNOMED terms using:
-        1. Exact matching (preferred if found)
-        2. Fuzzy matching (if no exact matches)
+        Output structure: [{"name":str,"id":str,"semantic_tags":list[str],"match_score":float},{...},{...},...]
         """
-        matches = self.exact_match(text) if fuzzy_threshold==100 else self.fuzzy_match(text, fuzzy_threshold)
+        matches = self.exact_match(text) if fuzzy_threshold==1 else self.fuzzy_match(text, fuzzy_threshold)
         #shortcut to avoid useless loop when filtering is not required
         if filter_tags:
             filtered_matches = []
@@ -82,8 +77,3 @@ class SNOMEDMapper:
             unique_matches = [json.loads(x) for x in list(set(dict_strings))]
             matches = unique_matches
         return matches
-
-
-# Example Usage
-csv_path = "data/reuma_dict.csv"  # Replace with your actual CSV file path
-mapper = SNOMEDMapper(csv_path)

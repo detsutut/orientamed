@@ -32,6 +32,22 @@ def insertQueryNode(text, codes):
 def get_chunk(id: str):
     return kg.query("MATCH (n:Chunk) WHERE n.chunkId = $id RETURN n", params={'id': id})[0]['n']
 
+def shortest_path_bewteen(id1: str, id2: str, max_hops: int = 10):
+    cypher = f"""
+        MATCH (start:ObjectConcept {{id: $id1}}), (start:ObjectConcept {{id: $id2}})
+        MATCH path = shortestPath((start)-[*1..{max_hops}]-(end))
+        WITH path
+        WHERE all(r IN relationships(path) WHERE type(r) <> 'NEXT') AND all(n IN nodes(path)[0..-1] WHERE n:ObjectConcept)
+        RETURN path
+    """
+    paths = kg.query(cypher, params={'id1': id1, 'id2': id2})
+    shortest_path  = list()
+    if paths:
+        path = paths[0]["path"]  # prendo il percorso (lista di dizionari (nodi) e stringhe (relazioni))
+        node_count = math.ceil(len(path) / 2) - 2  # Distanza 0 = nodi direttamente collegati
+        shortest_path.append({"id1": id1, "id2": id2, "path": path, "nodeCount": node_count})
+    return shortest_path
+
 def shortest_path_id(id: str, max_hops: int = 10):
     chunk_ids = [c['id'] for c in kg.query("MATCH (n:Chunk) RETURN n.chunkId AS id")]
 

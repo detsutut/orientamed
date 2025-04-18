@@ -5,7 +5,6 @@ import boto3
 import gradio as gr
 import os
 import logging
-from rags import Rag
 import yaml
 import random
 from boto3 import Session
@@ -27,9 +26,9 @@ parser.add_argument('--local', action="store", dest='local', default=False, type
 args = parser.parse_args()
 
 ############# LOGGER ##################
-logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+logging.basicConfig(level=logging.INFO if args.debug else logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("app")
+logger.setLevel(logging.INFO if args.debug else logging.INFO)
 
 ############# LOAD CONFIGS ##################
 with open(args.settings_file) as stream:
@@ -45,6 +44,7 @@ os.chdir(wd)
 ############# LOCAL IMPORTS ##################
 from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
 from app_utils import get_mfa_response, token_auth, dot_progress_bar, get_admin_username, from_list_to_messages
+from rags import Rag
 
 ############# GLOBAL VARIABLES ##################
 LOG_STAT_FILE = "logs/token_usage.json"
@@ -120,7 +120,7 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
         return [gr.ChatMessage(role="assistant", content="Sembra che tu abbia esaurito la tua quota giornaliera. Riprova più tardi.")]
     try:
         if enable_rag:
-            response = RAG.invoke({"question": message,
+            response = RAG.invoke({"query": message,
                                    "history": from_list_to_messages(history),
                                    "additional_context": additional_context,
                                    "input_tokens_count":0,
@@ -134,7 +134,7 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
             answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
             ###
             concepts_str = ""
-            retrieved_concepts = response["concepts"]
+            retrieved_concepts = response["query_concepts"]+response["answer_concepts"]
             for concept in retrieved_concepts:
                 concept_string = f"**{concept['name'].upper()}**: {concept['semantic_tags']} ({dot_progress_bar(concept['match_score']/100)})"
                 concepts_str += ("- "+concept_string+"\n")
@@ -332,7 +332,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
         with gr.Group():
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456", type="password")
             btn = gr.Button("Confirm")
-    with gr.Tab("Admin Panel", visible=False) as stats_tab:
+    with gr.Tab("Admin Panel", visible=True) as stats_tab:
         with gr.Group():
             stats = get_usage_stats()
             with gr.Row():
@@ -360,7 +360,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
 
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
-            auth=token_auth,
+            #auth=token_auth,
             ssl_keyfile = args.ssl_keyfile,
             ssl_certfile = args.ssl_certfile,
             ssl_verify = False,
