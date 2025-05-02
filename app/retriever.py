@@ -50,6 +50,8 @@ class Retriever:
         logger.debug(f"{len(all_splits)} splits created for {name}")
         _ = self.vector_store.add_documents(documents=all_splits)
         logger.debug(f"Vector store updated with {name}.")
+        self.save_vector_store("./temp.db")
+        logger.debug(f"New vector store saved in {Path('./temp.db')}.")
         return None
 
     def save_vector_store(self, file_path: str):

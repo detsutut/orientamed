@@ -110,7 +110,7 @@ def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
     else:
         return False
 
-def reply(message, history, is_admin, enable_rag, query_aug, additional_context, request: gr.Request):
+def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, additional_context, request: gr.Request):
     global RAG
     admin_or_test = is_admin or request.username=="test"
     is_banned = check_ban(request.client.host) if not admin_or_test else False #don't check if admin or testing
@@ -125,7 +125,8 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
                                    "additional_context": additional_context,
                                    "input_tokens_count":0,
                                    "output_tokens_count":0,
-                                   "query_aug": query_aug})
+                                   "query_aug": query_aug,
+                                   "use_graph": enable_rag_graph})
             answer = response["answer"]
             input_tokens_count = response["input_tokens_count"]
             output_tokens_count = response["output_tokens_count"]
@@ -133,11 +134,12 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
             log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
             answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
             ###
-            concepts_str = ""
-            retrieved_concepts = response["query_concepts"]+response["answer_concepts"]
-            for concept in retrieved_concepts:
-                concept_string = f"**{concept['name'].upper()}**: {concept['semantic_tags']} ({dot_progress_bar(concept['match_score']/100)})"
-                concepts_str += ("- "+concept_string+"\n")
+            if enable_rag_graph:
+                concepts_str = ""
+                retrieved_concepts = response["query_concepts"]+response["answer_concepts"]
+                for concept in retrieved_concepts:
+                    concept_string = f"**{concept['name'].upper()}**: {concept['semantic_tags']} ({dot_progress_bar(concept['match_score']/100)})"
+                    concepts_str += ("- "+concept_string+"\n")
             ###
             citations = {}
             citations_str = ""
@@ -150,22 +152,27 @@ def reply(message, history, is_admin, enable_rag, query_aug, additional_context,
                 citations.update({i: {"source":source, "content":content}})
                 citations_str += ("- "+doc_string+"\n")
             ###
-            kg_citations_str = ""
-            retrieved_documents = response["kg_context"]["docs"]
-            retrieved_scores = response["kg_context"]["scores"]
-            retrieved_paths = response["kg_context"]["paths"]
-            for i, document in enumerate(retrieved_documents):
-                source = os.path.basename(document.metadata.get("source", ""))
-                content = document.page_content
-                doc_string = f"[KG{i+1}] **{source}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
-                kg_citations_str += ("- "+doc_string+"\n")
-            return [gr.ChatMessage(role="assistant", content=answer),
-                    gr.ChatMessage(role="assistant", content=concepts_str,
-                                   metadata={"title": "🌐 SNOMED Concepts"}),
-                    gr.ChatMessage(role="assistant", content=kg_citations_str,
-                                   metadata={"title": "🌐 Percorsi collegati"}),
-                    gr.ChatMessage(role="assistant", content=citations_str,
-                                metadata={"title": "📖 Linee guida correlate"})]
+            if enable_rag_graph:
+                kg_citations_str = ""
+                retrieved_documents = response["kg_context"]["docs"]
+                retrieved_scores = response["kg_context"]["scores"]
+                retrieved_paths = response["kg_context"]["paths"]
+                for i, document in enumerate(retrieved_documents):
+                    source = os.path.basename(document.metadata.get("source", ""))
+                    content = document.page_content
+                    doc_string = f"[KG{i+1}] **{source}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
+                    kg_citations_str += ("- "+doc_string+"\n")
+                return [gr.ChatMessage(role="assistant", content=answer),
+                        gr.ChatMessage(role="assistant", content=concepts_str,
+                                       metadata={"title": "🌐 SNOMED Concepts"}),
+                        gr.ChatMessage(role="assistant", content=kg_citations_str,
+                                       metadata={"title": "🌐 Percorsi collegati"}),
+                        gr.ChatMessage(role="assistant", content=citations_str,
+                                    metadata={"title": "📖 Linee guida correlate"})]
+            else:
+                return [gr.ChatMessage(role="assistant", content=answer),
+                        gr.ChatMessage(role="assistant", content=citations_str,
+                                    metadata={"title": "📖 Linee guida correlate"})]
         else:
             response = RAG.generate_norag(message)
             answer = response["answer"]
@@ -230,6 +237,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
     admin_state = gr.State(False)
     disclaimer_seen = gr.BrowserState(False)
     kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
+    graph = gr.Checkbox(label="Usa Knowledge Graphs", value=True, render=False)
     qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
     session_state =gr.State()
 
@@ -278,6 +286,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                                      examples=[[e] for e in config.get('gradio').get('examples')],
                                      additional_inputs=[admin_state,
                                                         kb,
+                                                        graph,
                                                         qa,
                                                         gr.Textbox(label="Procedure interne, protocolli, anamnesi da affiancare alle linee guida",
                                                                    info="Queste informazioni verranno affiancate alle linee guida nell'elaborazione della risposta e citate con il numero [0].",

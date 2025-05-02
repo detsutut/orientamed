@@ -1,0 +1,70 @@
+1. Criteri classificativi della malattia da deposito di calcio pirofosfato
+Tra i pazienti con dolore, gonfiore o dolorabilità alle articolazioni (criterio di ingresso) i cui sintomi non sono completamente spiegati da una malattia alternativa (criterio di esclusione), la presenza della sindrome del dente incoronato o di cristalli di calcio pirofosfato nel liquido sinoviale sono sufficienti per classificare un paziente come affetto da malattia da deposito di calcio pirofosfato.
+ 
+1.1. Sviluppo dei criteri classificativi fase 1 e 2
+Nella fase 1, è stato elaborato un elenco completo dei potenziali criteri di classificazione sulla base di una revisione della letteratura e dell'input da parte del Comitato Misto di Esperti (CEC) e due pazienti partner di ricerca. 
+Nella fase 2 è stato ridotto e raffinato elenco delle potenziali voci considerate più specifiche per la malattia da deposito di calcio pirofosfato. Questi potenziali elementi sono stati inclusi nella scheda di raccolta dati (CRF) che è stata utilizzata per raccogliere i profili dei pazienti nelle coorti di derivazione e convalida.
+
+1.2. Sistema dei criteri di classificazione
+Il CEC ha deciso di includere i criteri di ingresso (necessari da considerare per la classificazione della malattia da deposito di calcio pirofosfato) così come i criteri di esclusione (se presenti la classificazione come malattia da deposito di calcio pirofosfato non dovrebbe procedere) e ha creato la bozza iniziale del sistema dei criteri di classificazione. Il sistema è costituito da domini che comprendono voci simili.
+
+1.2.1. Fattori chiave del sistema di classificazione
+Il CEC ha indentificato dei fattori chiave importanti per distinguere la malattia da deposito di calcio pirofosfato da imitazioni esaminando la classifica dei risultati e ORs. Questi fattori chiave sono: presenza di cristalli di calcio pirofosfato nel liquido sinoviale (o nel tessuto della biopsia), presenza della sindrome del dente coronato, comparsa dei sintomi dopo i 60 anni, artrite infiammatoria persistente, episodi tipici di artrite infiammatoria acuta definiti dall'insorgenza acuta o dal peggioramento acuto del dolore articolare con gonfiore e/o calore delle articolazioni che si risolve indipendentemente dal trattamento, localizzazione degli episodi tipici (ginocchio, polso, prima articolazione metatarsofalangea, altre articolazioni periferiche), condizioni metaboliche che predispongono alla CPP (emocromatosi ereditaria, iperparatiroidismo primario, ipomagnesemia, sindrome di Gitelman, ipofosfatasia, o storia familiare della malattia da deposito di calcio pirofosfato), osteoartrite radiografica di articolazioni specifiche della mano (articolazione scafo-trapezio-trapezoidale senza coinvolgimento della prima articolazione carpometacarpale, articolazione radio-carpale, seconda articolazione metacarpo-falangea, terza articolazione metacarpo-falangea), e evidenze di imaging della malattia da deposito di calcio pirofosfato (calcificazione lineare o puntiforme nella cartilagine ialina o fibrocartilagine) nelle articolazioni periferiche.
+
+1.3. Sequenza del sistema di classificazione
+Il sistema di classificazione della malattia da deposito di calcio pirofosfato deve essere applicato con la seguente sequenza:
+(1) i criteri di ingresso devono essere soddisfatti;
+(2) i criteri di esclusione devono essere assenti
+(3) i criteri sufficienti devono essere valutati (presenza o assenza);
+(4) se i criteri sufficienti sono assenti, procedere con il punteggio dei domini.
+Per essere classificato come affetto da CPP, un individuo deve aver avuto almeno un episodio di dolore, gonfiore o dolorabilità articolare alle articolazioni periferiche o assiali (criterio di ingresso). Una CPP sintomatica è richiesta per la classificazione. 
+I criteri di esclusione servono ad identificare gli individui in cui tutti i sintomi muscoloscheletrici potenzialmente attribuibili alla CPP sono più probabilmente spiegati da una condizione alternativa come artrite reumatoide, gotta, spondiloartrite periferica, o osteoartrite, ai quali non dovrebbero essere applicati ulteriormente i criteri di classificazione.
+Due criteri sufficienti sono stati concordati: sindrome del dente incoronato e l'analisi del liquido sinoviale che dimostra la presenza di cristalli di calcio pirofosfato in un'articolazione con gonfiore, dolorabilità o dolore.
+I criteri sufficienti sono soddisfatti anche se i cristalli di calcio pirofosfato sono rilevati dalla valutazione istopatologica del tessuto articolare.
+
+1.4. ACR/EULAR criteri di classificazione per la CPP
+Il sistema di classificazione della malattia da deposito di calcio pirofosfato dovrebbe essere applicato con il seguente ordine:
+(1) Criteri di ingresso: ha avuto almeno un episodio di dolore, gonfiore o dolorabilità articolare (episodio che si verifica in un'articolazione periferica o, nel caso della sindrome del dente incoronato, in una giunzione assiale come C1/C2).
+(2) Criteri assoluti di esclusione: tutti i sintomi sono più probabilmente spiegati da una condizione alternativa (come artrite reumatoide, gotta, spondiloartrite periferica, osteoartrite, ecc.).
+(3) Criteri sufficienti: presenza della sindrome del dente incoronato e l'analisi del liquido sinoviale che dimostra la presenza di cristalli di calcio pirofosfato in un'articolazione con gonfiore, dolorabilità o dolore. La sindrome del dente incoronato è definita come presenza di a) caratteristiche cliniche e b) caratteristiche di imaging. Le caratteristiche cliniche  comprendono l'insorgenza acuta o sub-acuta di dolore grave localizzato nella parte superiore del collo con marcatori di infiammazione elevati, rotazione limitata e spesso febbre. Condizioni imitative come polimialgia reumatica e meningite dovrebbero essere escluse. Le caratteristiche di imaging includono la CT convenzionale che mostra depositi calcifici, tipicamente lineari e meno densi dell'osso corticale, nel legamento trasverso retro-odontoide (legamento trasversale dell'atlante), spesso con un aspetto di 2 linee parallele nelle viste assiali. Calcificazioni nell'articolazione atlanto-assiale, nel legamento alare e/o nel pannus retro-odontoidale sono anch'esse caratteristiche. Le caratteristiche della tomografia computerizzata a doppia energia (DECT) includono un indice di doppia energia compreso tra 0,016 e 0,036. Devono essere presenti sia le caratteristiche cliniche che quelle di imaging. Criteri sufficienti sono soddisfatti anche se i cristalli di pirofosfato di calcio sono dimostrati con un'analisi istopatologica del tessuto articolare, a condizione che il paziente sia idoneo alla classificazione, cioè non soddisfi già i criteri di esclusione. Per esempio, la deposizione di cristalli di calcio pirofosfato nella cartilagine articolare in pazienti con osteoartrite allo stadio terminale (OA) non può essere utilizzata per classificare il paziente come affetto da malattia da deposito di calcio pirofosfato, quando tutti i sintomi sono meglio spiegati dalla presenza di OA (criteri di esclusione).
+Un individuo è classificato come affetto da malattia da deposito di calcio pirofosfato se i criteri di ingresso sono soddisfatti, i criteri di esclusione non sono soddisfatti e almeno un criterio sufficiente è soddisfatto. 
+
+1.4.1. Punteggi per la classificazione
+Gli elementi possono essere valutati se sono stati mai presenti durante la vita di un paziente. Se un paziente soddisfa > 1 elemento in un determinato dominio, verrà valutato solo l'elemento più alto ponderato. L'analisi imaging di almeno un articolazione sintomatica mediante CR, US, CT o DECT è necessaria.
+
+- Età della comparsa dei sintomi (dolore, gonfiore e/o dolorabilità):
+	- ≤60 anni: 0 punti
+	- >60 anni: 4 punti
+- Durata e sintomi dell'artrite infiammatoria:
+	- Non persistente o tipica artrite infiammatoria: 0 punti
+	- Persistente artrite infiammatoria: 9 punti
+	- Un episodio acuto tipico dell'artrite: 12 punti
+	- Più di un episodio acuto tipico dell'artrite: 16 punti
+- Siti di episodi tipici di artrite infiammatoria nelle articolazioni periferiche:
+	- Prima articolazione metatarsofalangea: -6 punti
+	- Nessun episodio tipico: 0 punti
+	- Articolazioni diverse da polso, ginocchio o prima articolazione metatarsofalangea: 5 punti
+	- Polso: 8 punti
+	- Ginocchio: 9 punti
+- Malattie metaboliche collegate:
+	- Nessuna: 0 punti
+	- Presenza: 6 punti
+- Analisi dei cristalli nel liquido sinoviale di un'articolazione sintomatica:
+	- Cristalli di calcio pirofosfato assenti in 2 occasioni: -7 punti
+	- Cristalli di calcio pirofosfato assenti in 1 occasione: -1 punto
+	- Non eseguita: 0 punti
+- Osteoartrite della mano/polso sull'imaging (definita come presente se il punteggio K/L è ≥2):
+	- Nessuno dei risultati di seguito o nessuna immagine polso/mano eseguita: 0 punti
+	- Osteoartrite bilaterale dell'articolazione radio carpale: 2 punti
+	- ≥2 delle seguenti evidenze: osteoartrite dell'articolazione scafo-trapezio-trapezoidale senza osteoartrite della prima articolazione carpometacarpale; osteoartrite della seconda articolazione metacarpofalangea; osteoartrite della terza articolazione metacarpofalangea: 7 punti
+- Evidenza tramite imaging della malattia da deposito di calcio pirofosfato in articolazioni periferiche sintomatiche:
+	- Nessuna su US, CT o DECT (e assente su CR o CR non eseguito): -4 punti
+	- Nessuna su CR (e US, CT, DECT non eseguite): 0 punti
+	- Presente su CR, US, CT o DECT: 16 punti
+- Numero di articolazioni periferiche con evidenza della malattia da deposito di calcio pirofosfato in qualsiasi modalità di imaging indipendentemente dai sintomi:
+	- Nessuna: 0 punti
+	- 1: 16 punti
+	- 2-3: 23 punti
+	- ≥4: 25 punti
+
+I criteri evidenziano l'importanza della prova mediante immagini di deposito di cristalli di calcio pirofosfato.

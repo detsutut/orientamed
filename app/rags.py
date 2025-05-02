@@ -55,6 +55,7 @@ class State(TypedDict):
     history: List[BaseMessage] # all the interactions between ai and user
     additional_context: str # additional info added by the user to be considered a valid source
     query_aug: bool # use or not query augmentation technique before passing the query to the retriever
+    use_graph: bool
     #INTERNAL
     translation: str # output of translator
     answer_generated: bool
@@ -115,6 +116,8 @@ class Rag:
                            goto="augmentator" if state["query_aug"] else ["emb_retriever","translator"])
 
     def translator(self, state: State) -> Command[Literal["concept_extractor"]]:
+        if not state["use_graph"]:
+            return Command(goto=END if state["answer_generated"] else "ans_generator")
         logger.info(f"Translating...")
         text_to_translate = state["query"] if not state["answer_generated"] else state["answer"]
         messages = self.prompts.translation.invoke({"text": text_to_translate}).messages
