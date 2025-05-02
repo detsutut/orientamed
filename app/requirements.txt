@@ -16,3 +16,4 @@ matplotlib
 dayplot
 rapidfuzz
 flashtext
+langchain_neo4j
