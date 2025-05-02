@@ -341,7 +341,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
         with gr.Group():
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456", type="password")
             btn = gr.Button("Confirm")
-    with gr.Tab("Admin Panel", visible=True) as stats_tab:
+    with gr.Tab("Admin Panel", visible=False) as stats_tab:
         with gr.Group():
             stats = get_usage_stats()
             with gr.Row():
@@ -369,7 +369,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
 
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
-            #auth=token_auth,
+            auth=token_auth,
             ssl_keyfile = args.ssl_keyfile,
             ssl_certfile = args.ssl_certfile,
             ssl_verify = False,
