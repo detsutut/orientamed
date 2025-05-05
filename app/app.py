@@ -213,7 +213,7 @@ def onload(disclaimer_seen:bool, request: gr.Request):
     return [admin_priviledges,
             Modal(visible=modal_visible),
             disclaimer_seen,
-            gr.Checkbox(interactive=admin_priviledges),
+            gr.Checkbox(interactive=True), #debug
             gr.Checkbox(interactive=admin_priviledges),
             logging_info]
 
