@@ -164,7 +164,7 @@ class Rag:
             if answer_concept["id"] not in qc_ids and answer_concept["name"] not in qc_names:
                 path_found = False
                 for question_concept_id in qc_ids:
-                    if shortest_path_bewteen(id1=answer_concept["id"], id2=question_concept_id, max_hops=2):
+                    if shortest_path_bewteen(id1=answer_concept["id"], id2=question_concept_id, max_hops=5):
                         path_found = True
                         break
                 if not path_found:
