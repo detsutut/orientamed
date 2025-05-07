@@ -224,7 +224,7 @@ def onload(disclaimer_seen:bool, request: gr.Request):
     return [admin_priviledges,
             Modal(visible=modal_visible),
             disclaimer_seen,
-            gr.Checkbox(interactive=admin_priviledges),
+            gr.Checkbox(interactive=True), #debug
             gr.Checkbox(interactive=admin_priviledges),
             logging_info]
 
@@ -233,7 +233,7 @@ def toggle_interactivity(is_admin):
     logger.debug("Updating admin functionalities")
     return [gr.UploadButton(file_count="single", interactive=is_admin),
             gr.Tab("Admin Panel", visible=is_admin),
-            gr.Checkbox(interactive=is_admin),
+            gr.Checkbox(interactive=True), #debug
             gr.Checkbox(interactive=is_admin)
             ]
 
