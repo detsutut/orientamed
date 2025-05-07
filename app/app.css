@@ -65,6 +65,77 @@ sup.logo, sub.logo, span.logo{
   color: #2eb8e8; /* Change this to match your theme */
 }
 
+#warning {
+    border-width: thin;
+    padding: 5px;
+    border-radius: 5px;
+    background-color: lightgoldenrodyellow;
+    border-color: coral;
+    font-style: italic;
+    font-size: smaller;
+}
+
+.concept_container {
+    border-radius: 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.concept {
+    border-radius: 20px;
+    padding: 5px 10px 5px 10px;
+    background-color: #61e9b7;
+    font-weight: bold;
+    font-size: smaller;
+    transition: transform 0.1s ease-in-out;
+    transform-origin: center;
+}
+
+#cquery.concept  {
+    background-color: #87e0ff;
+}
+
+#canswer.concept  {
+    background-color: #61e9b7;
+}
+
+.concept:hover {
+  transform: scale(1.03);
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: auto;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  /* Positioning */
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; /* Adjust as needed */
+  left: 50%;
+  transform: translateX(-50%);
+
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
 h1 #logo{
     font-size:2.7em;
     font-family: 'Funnel Display', sans-serif;
@@ -136,4 +207,8 @@ div:has(> #citations_eval) {
 #eval_main_text textarea {
     font-size: 1.2em;
     background-color: #ffffff00
+}
+
+#cit {
+    color: grey
 }

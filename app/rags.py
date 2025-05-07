@@ -5,6 +5,7 @@ from langchain_aws import BedrockEmbeddings, InMemoryVectorStore, ChatBedrockCon
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import logging
+from kg_retriever import shortest_path_bewteen, shortest_path_id, get_chunk
 from languagemodel import LanguageModel
 from retriever import Retriever
 from langgraph.graph import StateGraph, END
@@ -13,9 +14,10 @@ from langchain_core.messages.human import HumanMessage
 from typing_extensions import List, TypedDict
 import textwrap
 import json
-from concept_mapper import SNOMEDMapper
-from kg_retriever import shortest_path_id, get_chunk, shortest_path_bewteen
+import requests
+import pandas as pd
 from langchain_core.documents import Document
+import numpy as np
 
 logger = logging.getLogger('app.'+__name__)
 
@@ -56,8 +58,8 @@ class State(TypedDict):
     additional_context: str # additional info added by the user to be considered a valid source
     query_aug: bool # use or not query augmentation technique before passing the query to the retriever
     use_graph: bool
+    retrieve_only: bool
     #INTERNAL
-    translation: str # output of translator
     answer_generated: bool
     #OUTPUTS
     input_tokens_count: Annotated[int, add] # amount of input tokens processed by the whole chain of llm calls triggered in this round
@@ -91,7 +93,6 @@ class Rag:
         graph_builder.add_node("augmentator", self.augmentator)
         graph_builder.add_node("emb_retriever", self.emb_retriever)
         graph_builder.add_node("ans_generator", self.ans_generator)
-        graph_builder.add_node("translator", self.translator)
         graph_builder.add_node("consistency_checker", self.consistency_checker)
         graph_builder.add_node("concept_extractor", self.concept_extractor)
         graph_builder.add_node("kg_retriever", self.kg_retriever)
@@ -105,7 +106,7 @@ class Rag:
                 "input_tokens_count": response.usage_metadata["input_tokens"],
                 "output_tokens_count": response.usage_metadata["output_tokens"]}
 
-    def orchestrator(self, state: State) -> Command[Literal["augmentator", "emb_retriever", "translator", "history_consolidator"]]:
+    def orchestrator(self, state: State) -> Command[Literal["augmentator", "emb_retriever", "history_consolidator"]]:
         logger.info(f"Dispatching request...")
         previous_user_interactions = [message for message in state["history"] if type(message) is HumanMessage]
         if len(previous_user_interactions) > 0:
@@ -113,28 +114,16 @@ class Rag:
                            goto="history_consolidator")
         else:
             return Command(update={"answer_generated":False},
-                           goto="augmentator" if state["query_aug"] else ["emb_retriever","translator"])
-
-    def translator(self, state: State) -> Command[Literal["concept_extractor"]]:
-        if not state["use_graph"]:
-            return Command(goto=END if state["answer_generated"] else "ans_generator")
-        logger.info(f"Translating...")
-        text_to_translate = state["query"] if not state["answer_generated"] else state["answer"]
-        messages = self.prompts.translation.invoke({"text": text_to_translate}).messages
-        response = self.llm.generate(messages=messages)
-        logger.info(f"Translation: {response.content}")
-        return Command(
-            update={"translation": response.content,
-                    "input_tokens_count": response.usage_metadata["input_tokens"],
-                    "output_tokens_count": response.usage_metadata["output_tokens"]
-                    },
-            goto="concept_extractor",
-        )
+                           goto="augmentator" if state["query_aug"] else ["emb_retriever"])
 
     def concept_extractor(self, state: State) -> Command[Literal["kg_retriever","consistency_checker"]]:
+        if not state["use_graph"]:
+            return Command(goto=END if state["answer_generated"] else "ans_generator")
         logger.info(f"Extracting Concepts...")
-        mapper = SNOMEDMapper("data/reuma_dict.csv")
-        concepts = mapper.map_text_to_snomed(state["translation"], fuzzy_threshold=1, unique=True)
+        url = "https://dheal-com.unipv.it:7878/extract"
+        params = {'text': state["query"] if not state["answer_generated"] else state["answer"], 'o': 100, 'p': False}
+        response = requests.get(url, params=params)
+        concepts = pd.DataFrame(response.json()).to_dict(orient='records')
         if not state["answer_generated"]:
             return Command(
                 update={"query_concepts": concepts},
@@ -146,9 +135,9 @@ class Rag:
                 goto="consistency_checker",
             )
 
-    def emb_retriever(self, state: State) -> Command[Literal["ans_generator", END]]:
+    def emb_retriever(self, state: State) -> Command[Literal["concept_extractor", END]]:
         logger.info(f"Retrieving Documents...")
-        retrieved_docs, scores = self.retriever.retrieve_with_scores(state["query"], n=10, score_threshold=0.6)
+        retrieved_docs, scores = self.retriever.retrieve_with_scores(state["query"], n=10, score_threshold=0.4)
         logger.info(f"Retrieved docs: {retrieved_docs}")
         additional_context = state.get("additional_context", None)
         if len(retrieved_docs) == 0 and (type(additional_context) is not str or additional_context == ""):
@@ -160,36 +149,39 @@ class Rag:
         else:
             return Command(
                 update={"context": {"docs": retrieved_docs, "scores": scores}},
-                goto="ans_generator",
+                goto="concept_extractor",
             )
 
     def consistency_checker(self, state: State) -> Command[Literal[END]]:
         logger.info(f"Checking answer consistency...")
         qc = state["query_concepts"]
-        qc_names = [c["name"] for c in qc]
         qc_ids = [c["id"] for c in qc]
-        ac = state["answer_concepts"]
+        qc_names = [c["name"] for c in qc]
         inconsistent_concepts = []
-        answer_warning = ""
-        for answer_concept in ac:
-            if answer_concept["name"] not in qc_names:
+        answer = state["answer"]
+        for answer_concept in state["answer_concepts"]:
+            # For answer concepts that are not in the query concepts, check if there is at least one path between them and a query concept. If not, add them to the list of inconsistent concepts.
+            if answer_concept["id"] not in qc_ids and answer_concept["name"] not in qc_names:
                 path_found = False
                 for question_concept_id in qc_ids:
-                    if shortest_path_bewteen(id1=answer_concept["id"], id2=question_concept_id, max_hops=5):
+                    if shortest_path_bewteen(id1=answer_concept["id"], id2=question_concept_id, max_hops=2):
                         path_found = True
                         break
                 if not path_found:
                     inconsistent_concepts.append(answer_concept["name"]+" ("+answer_concept["id"]+")")
         if inconsistent_concepts:
             ic_string = ', '.join(inconsistent_concepts)
-            answer_warning = f"**INCONSISTENCY WARNING: concepts mentioned in the answer appear to be unlinked with query concepts. {ic_string}.\nThe generated answer should be carefully evaluated. Do not rely on the generated answer for medical decisions.**"
+            answer_warning = f"<div id='warning'>⚠️ Alcuni concetti menzionati nella risposta non sembrano essere collegati con quelli menzionati nella query. Valutare la risposta in modo scrupoloso e non utilizzare direttamente per prendere decisioni mediche. ({int((len(inconsistent_concepts)/len(state['answer_concepts']))*100)}%)</div>"
+            logger.warning(f"INCONSISTENCY WARNING: {ic_string}")
+            answer = answer+"\n"+answer_warning
         return Command(
-            update={"answer": state["answer"]+"\n"+answer_warning},
+            update={"answer": answer},
             goto=END,
         )
 
     def kg_retriever(self, state: State) -> Command[Literal["ans_generator"]]:
         logger.info(f"Retrieving Nodes...")
+        max_num_chunks=10
         paths = []
         for concept in state["query_concepts"]:
             paths.extend(shortest_path_id(id=concept["id"], max_hops=3))
@@ -211,7 +203,7 @@ class Rag:
                     path_string += "--["+element+"]--"
             path_strings.append(path_string)
             chunk = get_chunk(path["id"])
-            retrieved_docs.append(Document(id=chunk["chunkId"], page_content=chunk["text"], metadata={"extra": True, "source": chunk["chunkId"]}))
+            retrieved_docs.append(Document(id=chunk["chunkId"], page_content=chunk["text"], metadata={"kg": True, "title": chunk["title"], "source": chunk["chunkId"].split("txt")[0]}))
         scores = [c["nodeCount"] for c in deduplicated_sorted_paths]
         return Command(
             update={"kg_context": {"docs": retrieved_docs, "scores": scores, "paths": path_strings}},
@@ -235,7 +227,7 @@ class Rag:
             goto="orchestrator",
         )
 
-    def augmentator(self, state: State) -> Command[Literal["emb_retriever","translator"]]:
+    def augmentator(self, state: State) -> Command[Literal["emb_retriever"]]:
         logger.info(f"Expanding Query...")
         messages = self.prompts.query_expansion.invoke({"question": state["query"]}).messages
         response = self.llm.generate(messages=messages)
@@ -246,14 +238,33 @@ class Rag:
                     "input_tokens_count": response.usage_metadata["input_tokens"],
                     "output_tokens_count": response.usage_metadata["output_tokens"]
                     },
-            goto=["emb_retriever","translator"],
+            goto=["emb_retriever"],
         )
 
-    def ans_generator(self, state: State) -> Command[Literal["translator"]]:
+    def ans_generator(self, state: State) -> Command[Literal["concept_extractor"]]:
+        if state["retrieve_only"]:
+            return Command(update={"answer": "*Nessuna risposta generata. Le risposte sono disattivate*",
+                                   "answer_generated": True,
+                                   "input_tokens_count": 0,
+                                   "output_tokens_count": 0},
+                           goto="concept_extractor")
         logger.info(f"Generating...")
         doc_strings = []
+        already_used_docs = []
         for i, doc in enumerate(state["context"]["docs"]):
             doc_strings.append(f"Source {i+1}:\n{doc.page_content}")
+            already_used_docs.append(doc.metadata.get("doc_id"))
+        # ADD KG-RELATED CHUNKS, BUT ONLY IF NOT ALREADY RETRIEVED BY STANDARD RAG
+        scores = state["kg_context"]["scores"]
+        if len(scores)>0:
+            min_score_docs = [state["kg_context"]["docs"][i] for i in np.where(scores == np.min(scores))[0]]
+            not_overlapping_docs = []
+            for doc in min_score_docs:
+                if doc.metadata.get("doc_id") not in already_used_docs:
+                    not_overlapping_docs.append(doc)
+            for i,doc in enumerate(not_overlapping_docs):
+                doc_strings.append(f"Source KG{i+1}:\n{doc.page_content}")
+        #ADDITIONAL CONTEXT
         additional_context = state.get("additional_context", None)
         if type(additional_context) is str and additional_context != "":
             logger.info(f"Appending additional context...")
@@ -265,7 +276,7 @@ class Rag:
                                "answer_generated": True,
                                "input_tokens_count": response.usage_metadata["input_tokens"],
                                "output_tokens_count": response.usage_metadata["output_tokens"]},
-                       goto="translator")
+                       goto="concept_extractor")
 
     def invoke(self, input: dict[str, Any]):
         return self.graph.invoke(input)

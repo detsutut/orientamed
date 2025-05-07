@@ -34,11 +34,20 @@ def get_chunk(id: str):
 
 def shortest_path_bewteen(id1: str, id2: str, max_hops: int = 10):
     cypher = f"""
-        MATCH (start:ObjectConcept {{id: $id1}}), (start:ObjectConcept {{id: $id2}})
-        MATCH path = shortestPath((start)-[*1..{max_hops}]-(end))
-        WITH path
-        WHERE all(r IN relationships(path) WHERE type(r) <> 'NEXT') AND all(n IN nodes(path)[0..-1] WHERE n:ObjectConcept)
-        RETURN path
+    MATCH(initial: ObjectConcept {{id: $id1}}), (final:ObjectConcept {{id: $id2}})
+    MATCH path = shortestPath((initial) - [*..{max_hops}]-(final))
+    WHERE all(n IN nodes(path) WHERE n: ObjectConcept)
+    RETURN path
+    """
+
+    cypher_backup = f"""
+    MATCH (initial:ObjectConcept {{id: $id1}}), (final:ObjectConcept {{id: $id2}})
+    MATCH path = (initial)-[*..{max_hops}]-(final)
+    WHERE all(r IN relationships(path) WHERE type(r) <> 'NEXT')
+    AND all(n IN nodes(path)[0..-1] WHERE n:ObjectConcept)
+    RETURN path
+    ORDER BY length(path) ASC
+    LIMIT 1
     """
     paths = kg.query(cypher, params={'id1': id1, 'id2': id2})
     shortest_path  = list()

@@ -15,6 +15,7 @@ from PIL import Image
 import argparse
 from datetime import datetime
 from gradio_modal import Modal
+import pandas as pd
 
 ############# CLI ARGUMENTS ##################
 parser = argparse.ArgumentParser()
@@ -110,9 +111,9 @@ def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
     else:
         return False
 
-def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, additional_context, request: gr.Request):
+def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, retrieve_only, additional_context, request: gr.Request):
     global RAG
-    admin_or_test = is_admin or request.username=="test"
+    admin_or_test = is_admin or request.username=="test" or args.debug
     is_banned = check_ban(request.client.host) if not admin_or_test else False #don't check if admin or testing
     if is_banned:
         logger.error("exceeded daily usage limit!")
@@ -126,31 +127,38 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, a
                                    "input_tokens_count":0,
                                    "output_tokens_count":0,
                                    "query_aug": query_aug,
+                                   "retrieve_only": retrieve_only,
                                    "use_graph": enable_rag_graph})
             answer = response["answer"]
             input_tokens_count = response["input_tokens_count"]
             output_tokens_count = response["output_tokens_count"]
             update_usage_log(request.client.host, input_tokens_count+output_tokens_count*4, False)
             log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
-            answer = re.sub(r"(\[[\d,\s]*\])",r"<sup>\1</sup>",answer)
+            answer = re.sub(r"(\[[\d,\s]*\])",r"<sup id='cit'>\1</sup>",answer)
             ###
             if enable_rag_graph:
-                concepts_str = ""
-                retrieved_concepts = response["query_concepts"]+response["answer_concepts"]
-                for concept in retrieved_concepts:
-                    concept_string = f"**{concept['name'].upper()}**: {concept['semantic_tags']} ({dot_progress_bar(concept['match_score']/100)})"
-                    concepts_str += ("- "+concept_string+"\n")
+                concepts_str = "<strong>QUERY</strong>\n<div class='concept_container'>"
+                for concept in response["query_concepts"]:
+                    concept_string = f"<div class='concept tooltip' id='cquery'>{concept['name'].upper()} <span class='tooltip-text'>ID: {concept['id']}, Match: {int(concept['match_score']*100)}%</span></div>"
+                    concepts_str += concept_string
+                concepts_str += "</div>\n<strong>ANSWER</strong>\n<div class='concept_container'>"
+                for concept in response["answer_concepts"]:
+                    concept_string = f"<div class='concept tooltip' id='canswer'>{concept['name'].upper()} <span class='tooltip-text'>ID: {concept['id']}, Match: {int(concept['match_score']*100)}%</span></div>"
+                    concepts_str += concept_string
+                concepts_str += "</div>"
             ###
             citations = {}
             citations_str = ""
             retrieved_documents = response["context"]["docs"]
             retrieved_scores = response["context"]["scores"]
             for i, document in enumerate(retrieved_documents):
-                source = os.path.basename(document.metadata.get("source", ""))
+                source = os.path.basename(document.metadata.get("source", "???"))
+                title = os.path.basename(document.metadata.get("title", "???"))
                 content = document.page_content
-                doc_string = f"[{i+1}] **{source}** - *\"{textwrap.shorten(content,500)}\"* (Confidenza: {dot_progress_bar(retrieved_scores[i])})"
+                doc_string = f"[{i+1}] **{title.strip()}** , **{source.strip()}** - *\"{textwrap.shorten(content,500)}\"* (Similarità: {dot_progress_bar(retrieved_scores[i])})"
                 citations.update({i: {"source":source, "content":content}})
                 citations_str += ("- "+doc_string+"\n")
+            citations_str += ("\nIDS: "+str([d.metadata.get("doc_id", "???") for d in retrieved_documents]))
             ###
             if enable_rag_graph:
                 kg_citations_str = ""
@@ -158,10 +166,12 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, a
                 retrieved_scores = response["kg_context"]["scores"]
                 retrieved_paths = response["kg_context"]["paths"]
                 for i, document in enumerate(retrieved_documents):
-                    source = os.path.basename(document.metadata.get("source", ""))
+                    source = os.path.basename(document.metadata.get("source", "???"))
+                    title = os.path.basename(document.metadata.get("title", "???"))
                     content = document.page_content
-                    doc_string = f"[KG{i+1}] **{source}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
+                    doc_string = f"[KG{i+1}] **{title.strip()}** , **{source.strip()}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
                     kg_citations_str += ("- "+doc_string+"\n")
+                kg_citations_str += ("\nIDS: "+str([d.id for d in retrieved_documents]))
                 return [gr.ChatMessage(role="assistant", content=answer),
                         gr.ChatMessage(role="assistant", content=concepts_str,
                                        metadata={"title": "🌐 SNOMED Concepts"}),
@@ -204,7 +214,8 @@ def onload(disclaimer_seen:bool, request: gr.Request):
         "query_params":dict(request.query_params)
     }
     logger.debug(f"Login details: {logging_info}")
-    admin_priviledges = request.username == get_admin_username()
+    is_admin = request.username == get_admin_username()
+    admin_priviledges = is_admin or args.debug
     if not disclaimer_seen:
         modal_visible = True
         disclaimer_seen = True
@@ -239,6 +250,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
     kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
     graph = gr.Checkbox(label="Usa Knowledge Graphs", value=True, render=False)
     qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
+    ro = gr.Checkbox(label="Usa solo come recupero fonti", value=False, render=False)
     session_state =gr.State()
 
     with Modal(visible=False) as evalmodal:
@@ -288,6 +300,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                                                         kb,
                                                         graph,
                                                         qa,
+                                                        ro,
                                                         gr.Textbox(label="Procedure interne, protocolli, anamnesi da affiancare alle linee guida",
                                                                    info="Queste informazioni verranno affiancate alle linee guida nell'elaborazione della risposta e citate con il numero [0].",
                                                                    placeholder="Inserisci qui eventuali procedure interne, protocolli o informazioni aggiuntive riguardanti il paziente.",
@@ -369,7 +382,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
 
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
-            auth=token_auth,
+            auth=token_auth if not args.debug else None,
             ssl_keyfile = args.ssl_keyfile,
             ssl_certfile = args.ssl_certfile,
             ssl_verify = False,

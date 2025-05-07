@@ -1,4 +1,4 @@
-vector-db-path: './data/reuma.db'
+vector-db-path: './data/reuma_250507.db'
 kb-folder: './data/reuma'
 chunk-size: 500
 chunk-overlap: 100
