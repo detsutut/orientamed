@@ -131,6 +131,18 @@ sup.logo, sub.logo, span.logo{
   white-space: nowrap;
 }
 
+.tooltip .tooltip-text.tooltip-cit {
+  background-color: #daffede0;
+  color: #2e453b;
+  line-height: 1.5;
+}
+
+.tooltip .tooltip-text.tooltip-cit-kg {
+  background-color: rgba(218, 234, 255, 0.88);
+  color: #392e45;
+  line-height: 1.5;
+}
+
 .tooltip:hover .tooltip-text {
   visibility: visible;
   opacity: 1;

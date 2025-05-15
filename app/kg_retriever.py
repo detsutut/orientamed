@@ -34,8 +34,7 @@ def get_chunk(id: str):
 
 def shortest_path_bewteen(id1: str, id2: str, max_hops: int = 10):
     cypher = f"""
-    MATCH(initial: ObjectConcept {{id: $id1}}), (final:ObjectConcept {{id: $id2}})
-    MATCH path = shortestPath((initial) - [*..{max_hops}]-(final))
+    MATCH path = shortestPath((initial: ObjectConcept {{id: $id1}})-[*1..{max_hops}]-(final:ObjectConcept {{id: $id2}}))
     WHERE all(n IN nodes(path) WHERE n: ObjectConcept)
     RETURN path
     """
@@ -61,8 +60,16 @@ def shortest_path_id(id: str, max_hops: int = 10):
     chunk_ids = [c['id'] for c in kg.query("MATCH (n:Chunk) RETURN n.chunkId AS id")]
 
     cypher = f"""
-        MATCH (start:ObjectConcept {{id: $id}}), (end:Chunk {{chunkId: $chunk_id}})
-        MATCH path = shortestPath((start)-[*1..{max_hops}]-(end))
+        MATCH path = shortestPath( (start:ObjectConcept {{id: $id}})-[*1..{max_hops}]-(final:Chunk {{chunkId: $chunk_id}}))
+        WITH path
+        WHERE all(r IN relationships(path) WHERE type(r) <> 'NEXT')
+          AND all(n IN nodes(path)[0..-1] WHERE n:ObjectConcept)
+        RETURN path
+    """
+
+    cypher_old = f"""
+        MATCH (start:ObjectConcept {{id: $id}}), (final:Chunk {{chunkId: $chunk_id}})
+        MATCH path = shortestPath((start)-[*1..{max_hops}]-(final))
         WITH path
         WHERE all(r IN relationships(path) WHERE type(r) <> 'NEXT') AND all(n IN nodes(path)[0..-1] WHERE n:ObjectConcept)
         RETURN path

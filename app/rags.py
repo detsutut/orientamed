@@ -124,6 +124,11 @@ class Rag:
         params = {'text': state["query"] if not state["answer_generated"] else state["answer"], 'o': 100, 'p': False}
         response = requests.get(url, params=params)
         concepts = pd.DataFrame(response.json()).to_dict(orient='records')
+        if len(concepts)==0:
+            logger.debug("No concepts found, trying with premium translation")
+            params = {'text': state["query"] if not state["answer_generated"] else state["answer"], 'o': 100, 'p': True}
+            response = requests.get(url, params=params)
+            concepts = pd.DataFrame(response.json()).to_dict(orient='records')
         if not state["answer_generated"]:
             return Command(
                 update={"query_concepts": concepts},
@@ -171,7 +176,7 @@ class Rag:
                     inconsistent_concepts.append(answer_concept["name"]+" ("+answer_concept["id"]+")")
         if inconsistent_concepts:
             ic_string = ', '.join(inconsistent_concepts)
-            answer_warning = f"<div id='warning'>⚠️ Alcuni concetti menzionati nella risposta non sembrano essere collegati con quelli menzionati nella query. Valutare la risposta in modo scrupoloso e non utilizzare direttamente per prendere decisioni mediche. ({int((len(inconsistent_concepts)/len(state['answer_concepts']))*100)}%)</div>"
+            answer_warning = f"<div style='padding-top:15px;'><div id='warning'>⚠️ Alcuni concetti menzionati nella risposta non sembrano essere collegati con quelli menzionati nella query. Valutare la risposta in modo scrupoloso e non utilizzare direttamente per prendere decisioni mediche. ({int((len(inconsistent_concepts)/len(state['answer_concepts']))*100)}%)</div></div>"
             logger.warning(f"INCONSISTENCY WARNING: {ic_string}")
             answer = answer+"\n"+answer_warning
         return Command(
@@ -181,7 +186,6 @@ class Rag:
 
     def kg_retriever(self, state: State) -> Command[Literal["ans_generator"]]:
         logger.info(f"Retrieving Nodes...")
-        max_num_chunks=10
         paths = []
         for concept in state["query_concepts"]:
             paths.extend(shortest_path_id(id=concept["id"], max_hops=3))
@@ -252,7 +256,7 @@ class Rag:
         doc_strings = []
         already_used_docs = []
         for i, doc in enumerate(state["context"]["docs"]):
-            doc_strings.append(f"Source {i+1}:\n{doc.page_content}")
+            doc_strings.append(f"Source {i+1}:\n\"{doc.page_content}\"")
             already_used_docs.append(doc.metadata.get("doc_id"))
         # ADD KG-RELATED CHUNKS, BUT ONLY IF NOT ALREADY RETRIEVED BY STANDARD RAG
         scores = state["kg_context"]["scores"]
@@ -263,13 +267,13 @@ class Rag:
                 if doc.metadata.get("doc_id") not in already_used_docs:
                     not_overlapping_docs.append(doc)
             for i,doc in enumerate(not_overlapping_docs):
-                doc_strings.append(f"Source KG{i+1}:\n{doc.page_content}")
+                doc_strings.append(f"Source KG{i+1}:\n\"{doc.page_content}\"")
         #ADDITIONAL CONTEXT
         additional_context = state.get("additional_context", None)
         if type(additional_context) is str and additional_context != "":
             logger.info(f"Appending additional context...")
-            doc_strings.append(f"Source [0]:\n{additional_context}")
-        docs_content = "\n".join(doc_strings)
+            doc_strings.append(f"Source [0]:\n\"{additional_context}\"")
+        docs_content = "\n\n".join(doc_strings)
         messages = self.prompts.question_with_context_inline_cit.invoke({"question": state["query"], "context": docs_content}).messages
         response = self.llm.generate(messages=messages, level="pro")
         return Command(update={"answer": response.content,
@@ -282,4 +286,8 @@ class Rag:
         return self.graph.invoke(input)
 
     def get_image(self):
-        return self.graph.get_graph().draw_mermaid_png()
+        try:
+            return self.graph.get_graph().draw_mermaid_png()
+        except Exception as e:
+            logger.error(f"Error drawing graph: {e}")
+            return None

@@ -15,6 +15,7 @@ from PIL import Image
 import argparse
 from datetime import datetime
 from gradio_modal import Modal
+import traceback
 import pandas as pd
 
 ############# CLI ARGUMENTS ##################
@@ -134,7 +135,25 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, r
             output_tokens_count = response["output_tokens_count"]
             update_usage_log(request.client.host, input_tokens_count+output_tokens_count*4, False)
             log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
-            answer = re.sub(r"(\[[\d,\s]*\])",r"<sup id='cit'>\1</sup>",answer)
+            retrieved_documents = response["context"]["docs"]
+            def replace_citations(match):
+                raw_refs = [ref.strip() for ref in match.group(1).split(',')]
+                formatted_strings=[]
+                for ref in raw_refs:
+                    pos = int(re.findall(r"\d+", ref)[0])-1
+                    if re.fullmatch(r"\d+", ref):
+                        document = retrieved_documents[pos]
+                        source = os.path.basename(document.metadata.get("source", "???"))
+                        title = os.path.basename(document.metadata.get("title", "???"))
+                        formatted_strings.append(f"<span class='tooltip'>{pos+1}<span class='tooltip-text tooltip-cit'>{title} - {source}</span></span>")
+                    elif re.fullmatch(r"KG\d+", ref):
+                        document = retrieved_documents[pos]
+                        source = os.path.basename(document.metadata.get("source", "???"))
+                        title = os.path.basename(document.metadata.get("title", "???"))
+                        formatted_strings.append(f"<span class='tooltip'>KG{pos+1}<span class='tooltip-text tooltip-cit-kg'>{title} - {source}</span></span>")
+                return f"<sup id='cit'><span>[{','.join(formatted_strings)}]</span></sup>"
+            pattern = r"\[((?:\s*(?:\d+|KG\d+)\s*,?)+)\]"
+            answer = re.sub(pattern, replace_citations, answer)
             ###
             if enable_rag_graph:
                 concepts_str = "<strong>QUERY</strong>\n<div class='concept_container'>"
@@ -188,7 +207,7 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, r
             answer = response["answer"]
             return gr.ChatMessage(role="assistant", content=answer)
     except Exception as e:
-        logger.error(str(e))
+        logger.error(traceback.format_exc())
         gr.Error("Error: " + str(e))
 
 def usereval(*args):
@@ -369,9 +388,8 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
             with gr.Row():
                 usage_log_btn = gr.DownloadButton("Usage Log Download", value="logs/usage_log.json")
                 evaluation_log_btn = gr.DownloadButton("Evaluations Download", value="logs/evaluations.jsonl")
-        with gr.Group():
-            gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(RAG.get_image())))
-
+        #with gr.Group():
+            #gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(RAG.get_image())))
     gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div><br><div style='display:flex; justify-content:center; align-items:center'><small>© 2024 - 2025 | BMI Lab 'Mario Stefanelli' | DHEAL-COM | <a href='https://github.com/detsutut/dheal-com-rag-demo'>GitHub</a> </small></div>", elem_id="footer")
     upload_button.upload(upload_file, upload_button, None)
     mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
