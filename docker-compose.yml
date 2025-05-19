@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      context: ./          # The working directory for Docker
+      dockerfile: ./api/Dockerfile  # Optional if file is just 'Dockerfile'
+    restart: always
+    image: rag-api-image
+    ports:
+      - "7860:8000"
+    environment:
+      - SSL_KEYFILE=${SSL_KEYFILE}
+      - SSL_CERTFILE=${SSL_CERTFILE}
+    volumes:
+      - ./core:/app/core  # Needed since Dockerfile references /core
+      - ./api:/app/api
+      - ./api.py:/app/api.py
+      - ./favicon.ico:/app/favicon.ico
+      - ${SSL_KEYFILE}:/app/ssl_key.pem:ro
+      - ${SSL_CERTFILE}:/app/ssl_cert.pem:ro
+    working_dir: /app
+    command: uvicorn api:app --host 0.0.0.0 --port 8000 --ssl-keyfile /app/ssl_key.pem --ssl-certfile /app/ssl_cert.pem
+    #command: uvicorn api:app --host 0.0.0.0 --port 8000

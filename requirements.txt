@@ -1,0 +1,13 @@
+unstructured
+python-dotenv
+langchain_aws
+langchain_core
+langchain_community
+langchain_text_splitters
+boto3
+langgraph
+nltk
+libmagic
+pyyaml
+langchain_neo4j
+openai
