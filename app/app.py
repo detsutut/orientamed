@@ -136,6 +136,7 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, r
             update_usage_log(request.client.host, input_tokens_count+output_tokens_count*4, False)
             log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
             retrieved_documents = response["context"]["docs"]
+            retrieved_documents_kg = response["kg_context"]["docs"]
             def replace_citations(match):
                 raw_refs = [ref.strip() for ref in match.group(1).split(',')]
                 formatted_strings=[]
@@ -147,7 +148,7 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, r
                         title = os.path.basename(document.metadata.get("title", "???"))
                         formatted_strings.append(f"<span class='tooltip'>{pos+1}<span class='tooltip-text tooltip-cit'>{title} - {source}</span></span>")
                     elif re.fullmatch(r"KG\d+", ref):
-                        document = retrieved_documents[pos]
+                        document = retrieved_documents_kg[pos]
                         source = os.path.basename(document.metadata.get("source", "???"))
                         title = os.path.basename(document.metadata.get("title", "???"))
                         formatted_strings.append(f"<span class='tooltip'>KG{pos+1}<span class='tooltip-text tooltip-cit-kg'>{title} - {source}</span></span>")
