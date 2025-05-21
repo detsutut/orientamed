@@ -1,4 +1,4 @@
-from typing import Any, Literal, Tuple
+from typing import Any, Literal
 from boto3 import Session
 from typing_extensions import List, TypedDict
 import textwrap
@@ -15,13 +15,19 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import Command
 from langchain_core.documents import Document
 from langchain_core.messages.human import HumanMessage
+import os
+import yaml
 
 from core.kg_retriever import shortest_path_bewteen, shortest_path_id, get_chunk
 from core.languagemodel import LanguageModel
 from core.retriever import Retriever
 
 logger = logging.getLogger('app.'+__name__)
+logging.getLogger("langchain_aws").setLevel(logging.WARNING)
+logging.getLogger("langchain_core").setLevel(logging.WARNING)
 
+with open(os.getenv("CORE_SETTINGS_PATH")) as stream:
+    rag_config = yaml.safe_load(stream)
 
 def messages_to_history_str(messages: list[BaseMessage]) -> str:
     """Convert messages to a history string."""
@@ -76,16 +82,16 @@ class Rag:
     NOTALLOWED_MSG = "Mi dispiace, non posso rispondere a questa domanda."
 
     def __init__(self, session: Session,
-                 model: ChatBedrockConverse | str,
-                 embedder: BedrockEmbeddings | str,
-                 vector_store: InMemoryVectorStore | str | None = None,
-                 **kwargs):
-        self.prompts = Prompts(kwargs.get("promptfile", "./prompts.json"))
-        self.session = session
-        client = session.client("bedrock-runtime", region_name=kwargs.get("region"))
-        self.llm = LanguageModel(model, client=client, model_low=kwargs.get("model_low", None),
-                                 model_pro=kwargs.get("model_pro", None))
-        self.retriever = Retriever(embedder, vector_store=vector_store, client=client)
+                 vector_store: InMemoryVectorStore | str | None = None):
+        client = session.client("bedrock-runtime", region_name=rag_config.get("bedrock").get("region"))
+        self.prompts = Prompts(rag_config.get("promptfile"))
+        self.llm = LanguageModel(client=client,
+                                 model = rag_config.get("bedrock").get("models").get("model-id"),
+                                 model_low = rag_config.get("bedrock").get("models").get("low-model-id", None),
+                                 model_pro = rag_config.get("bedrock").get("models").get(" pro-model-id", None))
+        self.retriever = Retriever(client=client,
+                                   embedder=rag_config.get("bedrock").get("embedder-id"),
+                                   vector_store=vector_store)
 
         graph_builder = StateGraph(state_schema=State)
         graph_builder.set_entry_point("orchestrator")
@@ -144,7 +150,7 @@ class Rag:
     def emb_retriever(self, state: State) -> Command[Literal["concept_extractor", END]]:
         logger.info(f"Retrieving Documents...")
         retrieved_docs, scores = self.retriever.retrieve_with_scores(state["query"], n=10, score_threshold=0.4)
-        logger.info(f"Retrieved docs: {retrieved_docs}")
+        logger.info(f"{len(retrieved_docs)} documents retrieved.")
         additional_context = state.get("additional_context", None)
         if len(retrieved_docs) == 0 and (type(additional_context) is not str or additional_context == ""):
             return Command(
@@ -170,7 +176,7 @@ class Rag:
             if answer_concept["id"] not in qc_ids and answer_concept["name"] not in qc_names:
                 path_found = False
                 for question_concept_id in qc_ids:
-                    if shortest_path_bewteen(id1=answer_concept["id"], id2=question_concept_id, max_hops=5):
+                    if shortest_path_bewteen(id1=answer_concept["id"], id2=question_concept_id, max_hops=rag_config.get("graph").get("max_hops",5)):
                         path_found = True
                         break
                 if not path_found:

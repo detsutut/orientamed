@@ -1,0 +1,14 @@
+retriever:
+  chunk-size: 500
+  chunk-overlap: 100
+promptfile: 'core/prompts.json'
+bedrock:
+  region: 'eu-west-1'
+  embedder-id: 'cohere.embed-multilingual-v3'
+  models:
+    pro-model-id: 'eu.anthropic.claude-3-5-sonnet-20240620-v1:0' #anthropic.claude-3-5-sonnet-20240620-v1:0
+    model-id: 'mistral.mixtral-8x7b-instruct-v0:1' #mistral.mixtral-8x7b-instruct-v0:1
+    low-model-id: 'mistral.mixtral-8x7b-instruct-v0:1' #meta.llama3-1-8b-instruct-v1:0
+    ultra-low-model-id: 'mistral.mixtral-8x7b-instruct-v0:1'
+graph:
+  max-hops: 5

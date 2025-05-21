@@ -7,8 +7,9 @@ from langchain_core.messages.human import HumanMessage
 from langchain_core.messages.ai import AIMessage
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('app.'+__name__)
+logging.getLogger("langchain_aws").setLevel(logging.WARNING)
+logging.getLogger("langchain_core").setLevel(logging.WARNING)
 
 noSystemPromptModels = [
     "amazon.titan-text-express-v1",

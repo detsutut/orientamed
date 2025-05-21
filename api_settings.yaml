@@ -1,0 +1,9 @@
+vector-db-path: './data/reuma_250507.db'
+kb-folder: './data/reuma'
+debug: True
+logs:
+  max-size-mb: 5
+  num-backup: 3
+login:
+  access-expire-minutes: 60
+  algorithm: 'HS256'

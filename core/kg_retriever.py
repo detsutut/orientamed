@@ -1,14 +1,13 @@
 from langchain_neo4j import Neo4jGraph
 import math
-from dotenv import dotenv_values
+import logging
+import os
 
-NEO4J_SECRETS = "core/secrets.env"
+logger = logging.getLogger('app.'+__name__)
 
-dotenv_values(NEO4J_SECRETS).get("NEO4J_URL")
-
-kg = Neo4jGraph(url=dotenv_values(NEO4J_SECRETS).get("NEO4J_URL") ,
-                username=dotenv_values(NEO4J_SECRETS).get("NEO4J_USR"),
-                password=dotenv_values(NEO4J_SECRETS).get("NEO4J_PWD"))
+kg = Neo4jGraph(url=os.getenv("NEO4J_URL") ,
+                username=os.getenv("NEO4J_USR"),
+                password=os.getenv("NEO4J_PWD"))
 
 # Funzione che data una query crea il suo nodo e le relazioni con i concetti presenti in essa
 def insertQueryNode(text, codes):

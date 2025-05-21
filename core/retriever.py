@@ -7,9 +7,15 @@ from langchain_community.document_loaders import DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
 from langchain_core.documents import Document
+import yaml
+import os
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('app.'+__name__)
+logging.getLogger("langchain_aws").setLevel(logging.WARNING)
+logging.getLogger("langchain_core").setLevel(logging.WARNING)
 
+with open(os.getenv("CORE_SETTINGS_PATH")) as stream:
+    rag_config = yaml.safe_load(stream)
 
 class Retriever:
     def __init__(self, embedder: BedrockEmbeddings | str,
@@ -17,8 +23,8 @@ class Retriever:
                  vector_store: InMemoryVectorStore | str | None = None,
                  kb_folder: str | None = None,
                  glob: str = '**/*.txt',
-                 chunk_size: int = 500,
-                 chunk_overlap: int = 100):
+                 chunk_size: int = rag_config.get("retriever",{}).get("chunk-size",500),
+                 chunk_overlap: int = rag_config.get("retriever",{}).get("chunk-overlap",100)):
         if type(embedder) is BedrockEmbeddings:
             self.embeddings = embedder
         else:
