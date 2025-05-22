@@ -1,33 +1,33 @@
-vector-db-path: './data/reuma_250507.db'
-kb-folder: './data/reuma'
-chunk-size: 500
-chunk-overlap: 100
+app_title: "OrientaMed"
+app_logo_html: "<center><h1 class='logo'><sup class='logo'>+</sup>OrientaMed<span class='logo'> .</span></h1></center>"
+disclaimer: |
+  ### ⚠️ Disclaimer / Avviso  
+
+  **English:**  
+  By using this application, you acknowledge that you must not enter any patient-sensitive or personally identifiable health information. Data entered may be shared with third-party services, and any disclosure of patient information is your own responsibility.<br/>This platform is not designed to store or process protected health data.  
+
+  Conversations made using this AI tool are not intended to replace the opinion of a medical expert and should always be critically evaluated by a qualified professional. The app is intended to be used as a reference by general practitioners and should not be relied upon as the sole source for medical decision-making.
+
+  **Italiano:**  
+  Utilizzando questa applicazione, riconosci di non dover inserire informazioni sensibili sui pazienti o dati sanitari personali identificabili. I dati inseriti possono essere condivisi con servizi di terze parti e qualsiasi divulgazione di informazioni sui pazienti è sotto la tua responsabilità.<br/>Questa piattaforma non è progettata per archiviare o elaborare dati sanitari protetti.
+
+  Le conversazioni effettuate utilizzando questo strumento di intelligenza artificiale non sono destinate a sostituire il parere di un esperto medico e dovrebbero essere sempre valutate criticamente da un professionista qualificato. L'app è destinata ad essere utilizzata come riferimento dai medici di base e non deve essere considerata come l'unica fonte per le decisioni mediche.
 globs:
   - '**/*.txt'
   - '**/*.pdf'
-gradio:
-  secrets-path: './gradio_secrets.env'
-  avatar-img: './assets/dot.gif'
-  logo-img: './assets/a.png'
-  flagging-options:
-  greeting-messages:
-    - "Sono un assistente per il triage reumatico. Il mio compito è assistere i medici di medicina generale nella valutazione delle patologie di interesse reumatologico e dell'eventuale invio all'attenzione di uno specialista. Come posso aiutarti?"
-    - "Sono un assistente per il triage reumatico. Supporto i medici di base nella valutazione dell'invio dei pazienti reumatici al reumatologo ospedaliero per effettuare prime visite ma per ottimizzare la co-gestione del paziente già in trattamento. In che modo posso esserti utile?"
-    - "OrientaMed supporta i medici di base nella valutazione delle patologie reumatologiche e nell'eventuale indirizzamento a uno specialista. Come posso aiutarti?"
-    - "Le malattie reumatiche interessano più del 10% della popolazione generale e costituiscono pertanto un carico di lavoro importante per il medico di base. Il mio compito è quello di assistere i medici di medicina generale nella gestione di questo carico. Come posso aiutarti?"
-    - "Sono un assistente per il triage reumatico, e il mio ruolo è affiancare i medici di medicina generale nella valutazione delle patologie reumatologiche e nell'eventuale invio a uno specialista. Come posso esserti di supporto?"
-    - "OrientaMed è un servizio è dedicato al triage reumatico, per assistere i medici di base nella gestione delle patologie reumatologiche e nell'indirizzamento dei pazienti verso il reumatologo per un'adeguata consulenza specialistica. In cosa posso esserti utile?"
-  examples:
-    - "Quali sono i fattori da considerare per la polimialgia reumatica?"
-    - "Il mio paziente presenta lombalgia che dura da più di 3 mesi. Questo è un parametro rilevante per diagnosticare la spondiloartrite assiale (SpA)?"
-    - "Il paziente lamenta dolore notturno che migliorava alzandosi dal letto e rigiditá mattutina."
-    - "Ho un paziente con gonfiore e dolore alla caviglia. Può essere gotta anche senza coinvolgimento della prima articolazione metatarso-falangea?"
-bedrock:
-  secrets-path: './aws_secrets.env'
-  region: 'eu-west-1'
-  embedder-id: 'cohere.embed-multilingual-v3'
-  models:
-    pro-model-id: 'eu.anthropic.claude-3-5-sonnet-20240620-v1:0' #anthropic.claude-3-5-sonnet-20240620-v1:0
-    model-id: 'mistral.mixtral-8x7b-instruct-v0:1' #mistral.mixtral-8x7b-instruct-v0:1
-    low-model-id: 'mistral.mixtral-8x7b-instruct-v0:1' #meta.llama3-1-8b-instruct-v1:0
-    ultra-low-model-id: 'mistral.mixtral-8x7b-instruct-v0:1'
+kb-files-path: './data/reuma'
+avatar-img: './assets/dot.gif'
+logo-img: './assets/a.png'
+flagging-options:
+greeting-messages:
+  - "Sono un assistente per il triage reumatico. Il mio compito è assistere i medici di medicina generale nella valutazione delle patologie di interesse reumatologico e dell'eventuale invio all'attenzione di uno specialista. Come posso aiutarti?"
+  - "Sono un assistente per il triage reumatico. Supporto i medici di base nella valutazione dell'invio dei pazienti reumatici al reumatologo ospedaliero per effettuare prime visite ma per ottimizzare la co-gestione del paziente già in trattamento. In che modo posso esserti utile?"
+  - "OrientaMed supporta i medici di base nella valutazione delle patologie reumatologiche e nell'eventuale indirizzamento a uno specialista. Come posso aiutarti?"
+  - "Le malattie reumatiche interessano più del 10% della popolazione generale e costituiscono pertanto un carico di lavoro importante per il medico di base. Il mio compito è quello di assistere i medici di medicina generale nella gestione di questo carico. Come posso aiutarti?"
+  - "Sono un assistente per il triage reumatico, e il mio ruolo è affiancare i medici di medicina generale nella valutazione delle patologie reumatologiche e nell'eventuale invio a uno specialista. Come posso esserti di supporto?"
+  - "OrientaMed è un servizio è dedicato al triage reumatico, per assistere i medici di base nella gestione delle patologie reumatologiche e nell'indirizzamento dei pazienti verso il reumatologo per un'adeguata consulenza specialistica. In cosa posso esserti utile?"
+examples:
+  - "Quali sono i fattori da considerare per la polimialgia reumatica?"
+  - "Il mio paziente presenta lombalgia che dura da più di 3 mesi. Questo è un parametro rilevante per diagnosticare la spondiloartrite assiale (SpA)?"
+  - "Il paziente lamenta dolore notturno che migliorava alzandosi dal letto e rigiditá mattutina."
+  - "Ho un paziente con gonfiore e dolore alla caviglia. Può essere gotta anche senza coinvolgimento della prima articolazione metatarso-falangea?"

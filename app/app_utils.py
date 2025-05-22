@@ -1,11 +1,7 @@
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-AWS_SECRETS = "aws_secrets.env"
-GRADIO_SECRETS = "gradio_secrets.env"
 
 def dot_progress_bar(score, total_dots=7, absolute=False):
     if absolute:
@@ -17,3 +13,27 @@ def dot_progress_bar(score, total_dots=7, absolute=False):
         filled = "•" * filled_count
         empty = "·" * empty_count
         return f"{filled}{empty} {round(score*100,2)}%"
+
+from pydantic import BaseModel
+from typing import List, Optional
+
+class Concept(BaseModel):
+    name: str
+    id: str
+    match_score: float
+    semantic_tags: List[str]
+
+class Concepts(BaseModel):
+    query: List[Concept]
+    answer: List[Concept]
+
+class RetrievedDocuments(BaseModel):
+    embeddings: dict
+    graphs: dict
+
+class LLMResponse(BaseModel):
+    answer: str
+    input_tokens_count: int
+    output_tokens_count: int
+    retrieved_documents: RetrievedDocuments
+    concepts: Concepts

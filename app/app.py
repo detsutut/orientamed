@@ -9,13 +9,10 @@ import yaml
 import random
 import textwrap
 import re
-import io
-from PIL import Image
 import argparse
 from datetime import datetime
 from gradio_modal import Modal
 import traceback
-import pandas as pd
 
 ############# CLI ARGUMENTS ##################
 parser = argparse.ArgumentParser()
@@ -35,16 +32,13 @@ logger.setLevel(logging.INFO if args.debug else logging.INFO)
 with open(args.settings_file) as stream:
     config = yaml.safe_load(stream)
 
-with open("gui_settings.yaml") as stream:
-    gui_config = yaml.safe_load(stream)
-
 ############# CHANGE DIRECTORY ##################
 wd = os.path.abspath(os.path.dirname(args.settings_file))
 os.chdir(wd)
 
 ############# LOCAL IMPORTS ##################
 from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
-from app_utils import dot_progress_bar
+from app_utils import dot_progress_bar, LLMResponse
 
 ############# GLOBAL VARIABLES ##################
 LOG_STAT_FILE = "logs/token_usage.json"
@@ -53,36 +47,8 @@ LOG_EVAL_FILE = "logs/evaluations.jsonl"
 LOG_CHAT_HISTORY = "logs/chat_history.txt"
 CUSTOM_THEME = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
 
-############# RESPONSE DATA MODEL ###############
-
-from pydantic import BaseModel
-from typing import List, Optional
-
-class Concept(BaseModel):
-    name: str
-    id: str
-    match_score: float
-    semantic_tags: List[str]
-
-class Concepts(BaseModel):
-    query: List[Concept]
-    answer: List[Concept]
-
-class RetrievedDocuments(BaseModel):
-    embeddings: dict
-    graphs: dict
-
-class LLMResponse(BaseModel):
-    answer: str
-    input_tokens_count: int
-    output_tokens_count: int
-    retrieved_documents: RetrievedDocuments
-    concepts: Concepts
-
-
 def upload_file(filepath: str):
-    global RAG
-    #RAG.retriever.upload_file(filepath)
+    logger.info("Not implemented")
 
 #20K = approx 20 cents with most expensive models
 def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
@@ -224,29 +190,6 @@ def usereval(*args):
         file.write(json.dumps(data) + '\n')
     return [None] * len(args[:-3]) + [Modal(visible=False)]
 
-def onload(disclaimer_seen:bool, request: gr.Request):
-    logging_info = {
-        "username":request.username,
-        "ip":request.client.host,
-        "headers":request.headers,
-        "session_hash":request.session_hash,
-        "query_params":dict(request.query_params)
-    }
-    logger.debug(f"Login details: {logging_info}")
-    is_admin = False
-    admin_priviledges = is_admin or args.debug
-    if not disclaimer_seen:
-        modal_visible = True
-        disclaimer_seen = True
-    else:
-        modal_visible = False
-    return [admin_priviledges,
-            Modal(visible=modal_visible),
-            disclaimer_seen,
-            gr.Checkbox(interactive=True), #debug
-            gr.Checkbox(interactive=admin_priviledges),
-            logging_info]
-
 
 def toggle_interactivity(is_admin):
     logger.debug("Updating admin functionalities")
@@ -260,39 +203,27 @@ def update_stats():
     stats = get_usage_stats()
     return [gr.Plot(plot_cumulative_tokens()), gr.Plot(get_eval_stats_plot()), stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day'], round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)]
 
-with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {document.getElementById('options').style.display='none';}", theme=CUSTOM_THEME, css_paths="app.css", head_paths="app_head.html") as demo:
-    with Modal(visible=False) as disclaimer_modal:
-        gr.Markdown(gui_config.get("disclaimer"))
-    gr.Markdown(gui_config.get("app_logo_html"))
+with gr.Blocks(title=config.get("app_title"), js="function anything() {document.getElementById('options').style.display='none';}", theme=CUSTOM_THEME, css_paths="app.css", head_paths="app_head.html") as demo:
+    #### SESSION VARIABLES ####
     admin_state = gr.State(False)
-    disclaimer_seen = gr.BrowserState(False)
     access_token = gr.State(None)
-    kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
-    graph = gr.Checkbox(label="Usa Knowledge Graphs", value=True, render=False)
-    qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
-    ro = gr.Checkbox(label="Usa solo come recupero fonti", value=False, render=False)
     session_state =gr.State()
+    double_log_flag = gr.State(True)
 
-    with Modal(visible=True) as loginmodal:
+    #### BROWSER VARIABLES ####
+    disclaimer_seen = gr.BrowserState(False)
+
+    #### MODALS ####
+    with Modal(visible=False) as disclaimer_modal:
+        gr.Markdown(config.get("disclaimer"))
+
+    with Modal(visible=True) as login_modal:
         user = gr.Text(label="Username")
         pw = gr.Text(label="Password", type="password")
         login_btn = gr.Button("Login")
         login_result = gr.Markdown()
 
-    def login(user,pw):
-        response =requests.post("https://dheal-com.unipv.it:7861/auth/login",
-                      data=json.dumps({"username":user,"password":pw}),
-                      headers={"ContentType": "application/json"})
-        if response.status_code == 200:
-            token = response.json()["access-token"]
-            return f"Login successful", token, Modal(visible=False), Modal(visible=True)
-        else:
-            return "Invalid credentials", None, Modal(visible=True), Modal(visible=False)
-
-    login_btn.click(login,inputs=[user, pw],outputs=[login_result, access_token, loginmodal, disclaimer_modal])
-    pw.submit(login, inputs=[user, pw], outputs=[login_result, access_token, loginmodal, disclaimer_modal])
-
-    with Modal(visible=False) as evalmodal:
+    with Modal(visible=False) as eval_modal:
         like_dislike_state = gr.State("")
         with gr.Row():
             ec_main_text = gr.Textbox(label="Message", info="Text under evaluation", lines=2, interactive=False, elem_id="eval_main_text")
@@ -317,24 +248,30 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                 tb = gr.Textbox(label="Your answer", info="How would you answer instead? You can copy and paste the original text here to add or edit info or completely rewrite it from scratch.", interactive=True, lines=5)
                 submiteval_btn = gr.Button("SUBMIT", variant="primary", elem_id="eval_button_submit")
 
+    #### UI DESIGN ####
+    gr.Markdown(config.get("app_logo_html"))
+
+    kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
+    graph = gr.Checkbox(label="Usa Knowledge Graphs", value=True, render=False)
+    qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
+    ro = gr.Checkbox(label="Usa solo come recupero fonti", value=False, render=False)
+
     eval_components = [("question_comprehension",ma1), ("logical",ma2), ("guidelines_aligment",ma3),
                        ("completeness",ma4),("harm",sa1),("harm_extent", sa2), ("tone",co1),
                        ("coherence",co2),("helpfulness",co3),("main_text",ec_main_text),("citations",ec_citations),("comments",cm),("answer",tb)]
 
-    evalmodal.blur(lambda: [None]*len(eval_components), outputs=[t[1] for t in eval_components])
-
     with gr.Tab("Chat"):
-        history = [{"role": "assistant", "content": random.choice(config.get('gradio').get('greeting-messages'))}]
+        history = [{"role": "assistant", "content": random.choice(config.get('greeting-messages'))}]
         chatbot = gr.Chatbot(history, type="messages", show_copy_button=False, show_label=False, layout="panel", resizable=True,
-                             avatar_images=(None, config.get('gradio').get("avatar-img")))
+                             avatar_images=(None, config.get("avatar-img")))
         interface = gr.ChatInterface(fn=reply, type="messages",
                                      chatbot=chatbot,
                                      flagging_mode="manual",
-                                     flagging_options=config.get('gradio').get('flagging-options'),
+                                     flagging_options=config.get('flagging-options'),
                                      flagging_dir="./logs",
                                      save_history=True,
                                      analytics_enabled = False,
-                                     examples=[[e] for e in config.get('gradio').get('examples')],
+                                     examples=[[e] for e in config.get('examples')],
                                      additional_inputs=[admin_state, access_token,
                                                         kb,
                                                         graph,
@@ -349,57 +286,76 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                                      )
         download_btn = gr.Button("Scarica la conversazione", variant='secondary')
         download_btn_hidden = gr.DownloadButton(visible=False, elem_id="download_btn_hidden")
-        download_btn.click(fn=export_history, inputs=chatbot, outputs=[download_btn_hidden]).then(fn=None, inputs=None,
-                                                                                        outputs=None,
-                                                                                        js="() => document.querySelector('#download_btn_hidden').click()")
-
-
-        # Workaround to take into account username and ip address in logs
-        # for some reason, overriding the like callback causes two consecutive calls at few ms of distance
-        # we set a Session state flag to suppress the second call
-        # Session states are not shared between sessions, therefore, there should be no concurrency issue
-        double_log_flag = gr.State(True)
-        def manual_logger(data: gr.LikeData, messages: list, double_log_flag, request: gr.Request):
-            if double_log_flag:
-                log_filepath = "./logs/log_"+request.username.replace(".","_").replace("/","_") +"_"+ request.client.host.replace(".", "_") + ".csv"
-                is_new = not Path(log_filepath).exists()
-                csv_data = [json.dumps(messages), data.value, data.index, data.liked, request.client.host, request.username, str(datetime.now())]
-                with open(log_filepath, "a", encoding="utf-8", newline="") as csvfile:
-                    writer = csv.writer(csvfile)
-                    if is_new:
-                        writer.writerow(["conversation", "message", "index", "flag", "host",  "username", "timestamp"])
-                    writer.writerow(gr.utils.sanitize_list_for_csv(csv_data))
-            return not double_log_flag
-
-        def open_modal(data: gr.LikeData):
-            if data.liked=="":
-                return ["","","",gr.Accordion(open=False),Modal(visible=False)]
-            if len(data.value)>1:
-                citations = "\n".join(data.value[1:])
-            else:
-                citations = ""
-            return [str(data.liked), gr.Textbox(value=data.value[0]), gr.Textbox(value=citations), gr.Accordion(open=False), Modal(visible=True)]
-
-        interface.chatbot.like(open_modal, outputs=[like_dislike_state, ec_main_text, ec_citations, ec_cit_accordion, evalmodal])
-        submiteval_btn.click(usereval, [t[1] for t in eval_components]+[like_dislike_state,chatbot,session_state], [t[1] for t in eval_components]+[evalmodal])
 
     with gr.Tab("Settings") as settings:
         with gr.Group():
+            with gr.Row():
+                login_btn_settings = gr.Button("Login")
+                logout_btn_settings = gr.Button("Logout", link="/logout")
+        with gr.Group():
             gr.FileExplorer(label="Knowledge Base",
-                            root_dir=config.get('kb-folder'),
+                            root_dir=config.get('kb-files-path'),
                             glob=config.get('globs')[0],
                             interactive=False)
             upload_button = gr.UploadButton(file_count="single", interactive=admin_state.value)
-        with gr.Group():
-            mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456", type="password")
-            btn = gr.Button("Confirm")
+
     gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div><br><div style='display:flex; justify-content:center; align-items:center'><small>© 2024 - 2025 | BMI Lab 'Mario Stefanelli' | DHEAL-COM | <a href='https://github.com/detsutut/dheal-com-rag-demo'>GitHub</a> </small></div>", elem_id="footer")
+
+    #### GUI LOGIC ####
+
+    def login(user,pw):
+        response =requests.post("https://dheal-com.unipv.it:7861/auth/login",
+                      data=json.dumps({"username":user,"password":pw}),
+                      headers={"ContentType": "application/json"})
+        if response.status_code == 200:
+            token = response.json()["access-token"]
+            return f"Login successful", token, Modal(visible=False), Modal(visible=True)
+        else:
+            return "Invalid credentials", None, Modal(visible=True), Modal(visible=False)
+
+    # Workaround to take into account username and ip address in logs
+    # for some reason, overriding the like callback causes two consecutive calls at few ms of distance
+    # we set a Session state flag to suppress the second call
+    # Session states are not shared between sessions, therefore, there should be no concurrency issue
+
+    def manual_logger(data: gr.LikeData, messages: list, double_log_flag, request: gr.Request):
+        if double_log_flag:
+            log_filepath = "./logs/log_" + request.username.replace(".", "_").replace("/",
+                                                                                      "_") + "_" + request.client.host.replace(
+                ".", "_") + ".csv"
+            is_new = not Path(log_filepath).exists()
+            csv_data = [json.dumps(messages), data.value, data.index, data.liked, request.client.host,
+                        request.username, str(datetime.now())]
+            with open(log_filepath, "a", encoding="utf-8", newline="") as csvfile:
+                writer = csv.writer(csvfile)
+                if is_new:
+                    writer.writerow(["conversation", "message", "index", "flag", "host", "username", "timestamp"])
+                writer.writerow(gr.utils.sanitize_list_for_csv(csv_data))
+        return not double_log_flag
+
+    def open_modal(data: gr.LikeData):
+        if data.liked=="":
+            return ["","","",gr.Accordion(open=False),Modal(visible=False)]
+        if len(data.value)>1:
+            citations = "\n".join(data.value[1:])
+        else:
+            citations = ""
+        return [str(data.liked), gr.Textbox(value=data.value[0]), gr.Textbox(value=citations), gr.Accordion(open=False), Modal(visible=True)]
+
+    #### GUI EVENT LISTENERS ####
+
+    login_btn.click(login, inputs=[user, pw], outputs=[login_result, access_token, login_modal, disclaimer_modal])
+    pw.submit(login, inputs=[user, pw], outputs=[login_result, access_token, login_modal, disclaimer_modal])
+    eval_modal.blur(lambda: [None] * len(eval_components), outputs=[t[1] for t in eval_components])
+    download_btn.click(fn=export_history, inputs=chatbot, outputs=[download_btn_hidden]).then(fn=None, inputs=None,
+                                                                                    outputs=None,
+                                                                                    js="() => document.querySelector('#download_btn_hidden').click()")
+    interface.chatbot.like(open_modal, outputs=[like_dislike_state, ec_main_text, ec_citations, ec_cit_accordion, eval_modal])
+    submiteval_btn.click(usereval, [t[1] for t in eval_components] + [like_dislike_state,chatbot,session_state], [t[1] for t in eval_components] + [eval_modal])
     upload_button.upload(upload_file, upload_button, None)
-    #mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
-    #btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
-    #admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
-    #stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, eval_plot, stats_users, stats_input, stats_output, stats_ratio] )
-    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,disclaimer_modal,disclaimer_seen,kb,qa,session_state])
+    login_btn.click(login, inputs=[user, pw], outputs=[login_result, access_token, login_modal, disclaimer_modal])
+    login_btn_settings.click(lambda: Modal(visible=True), inputs=None, outputs=login_modal)
+    pw.submit(login, inputs=[user, pw], outputs=[login_result, access_token, login_modal, disclaimer_modal])
 
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
@@ -408,5 +364,5 @@ demo.launch(server_name="0.0.0.0",
             ssl_certfile = args.ssl_certfile,
             ssl_verify = False,
             pwa=True,
-            favicon_path=config.get('gradio').get('logo-img'),
+            favicon_path=config.get('logo-img'),
             allowed_paths=['./assets'])
