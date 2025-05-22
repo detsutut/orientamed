@@ -44,6 +44,7 @@ os.chdir(wd)
 
 ############# LOCAL IMPORTS ##################
 from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
+from app_utils import dot_progress_bar
 
 ############# GLOBAL VARIABLES ##################
 LOG_STAT_FILE = "logs/token_usage.json"
@@ -51,6 +52,33 @@ LOG_FILE = "logs/usage_log.json"
 LOG_EVAL_FILE = "logs/evaluations.jsonl"
 LOG_CHAT_HISTORY = "logs/chat_history.txt"
 CUSTOM_THEME = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
+
+############# RESPONSE DATA MODEL ###############
+
+from pydantic import BaseModel
+from typing import List, Optional
+
+class Concept(BaseModel):
+    name: str
+    id: str
+    match_score: float
+    semantic_tags: List[str]
+
+class Concepts(BaseModel):
+    query: List[Concept]
+    answer: List[Concept]
+
+class RetrievedDocuments(BaseModel):
+    embeddings: dict
+    graphs: dict
+
+class LLMResponse(BaseModel):
+    answer: str
+    input_tokens_count: int
+    output_tokens_count: int
+    retrieved_documents: RetrievedDocuments
+    concepts: Concepts
+
 
 def upload_file(filepath: str):
     global RAG
@@ -72,6 +100,8 @@ def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
     else:
         return False
 
+
+
 def reply(message, history, is_admin, access_token, enable_rag, enable_rag_graph, query_aug, retrieve_only, additional_context, request: gr.Request):
     admin_or_test = is_admin or request.username=="test" or args.debug
     is_banned = check_ban(request.client.host) if not admin_or_test else False #don't check if admin or testing
@@ -91,18 +121,21 @@ def reply(message, history, is_admin, access_token, enable_rag, enable_rag_graph
                       "use_embeddings": enable_rag
             }
             params = {'access_token': access_token}
-            response_raw = requests.post(url,
+            res = requests.post(url,
                                      data=json.dumps(data),
                                      params=params,
                                      headers={"ContentType": "application/json"})
-            response = response_raw.json()
-            answer = response["answer"]
-            input_tokens_count = response["input_tokens_count"]
-            output_tokens_count = response["output_tokens_count"]
-            update_usage_log(request.client.host, input_tokens_count+output_tokens_count*4, False)
-            log_token_usage(request.client.host, input_tokens_count, output_tokens_count)
-            retrieved_documents = response["context"]["docs"]
-            retrieved_documents_kg = response["kg_context"]["docs"]
+            if res.status_code != 200:
+                return gr.ChatMessage(role="assistant", content="Unexpected error.")
+            else:
+                try:
+                    response = LLMResponse.model_validate(res.json())
+                except Exception as e:
+                    return gr.ChatMessage(role="assistant", content="Unexpected error.")
+            update_usage_log(request.client.host, response.input_tokens_count+response.output_tokens_count*4, False)
+            log_token_usage(request.client.host, response.input_tokens_count, response.output_tokens_count)
+            retrieved_documents = response.retrieved_documents.embeddings["docs"]
+            retrieved_documents_kg = response.retrieved_documents.graphs["docs"]
             def replace_citations(match):
                 raw_refs = [ref.strip() for ref in match.group(1).split(',')]
                 formatted_strings=[]
@@ -110,54 +143,54 @@ def reply(message, history, is_admin, access_token, enable_rag, enable_rag_graph
                     pos = int(re.findall(r"\d+", ref)[0])-1
                     if re.fullmatch(r"\d+", ref):
                         document = retrieved_documents[pos]
-                        source = os.path.basename(document.metadata.get("source", "???"))
-                        title = os.path.basename(document.metadata.get("title", "???"))
+                        source = os.path.basename(document.get("metadata").get("source", "???"))
+                        title = os.path.basename(document.get("metadata").get("title", "???"))
                         formatted_strings.append(f"<span class='tooltip'>{pos+1}<span class='tooltip-text tooltip-cit'>{title} - {source}</span></span>")
                     elif re.fullmatch(r"KG\d+", ref):
                         document = retrieved_documents_kg[pos]
-                        source = os.path.basename(document.metadata.get("source", "???"))
-                        title = os.path.basename(document.metadata.get("title", "???"))
+                        source = os.path.basename(document.get("metadata").get("source", "???"))
+                        title = os.path.basename(document.get("metadata").get("title", "???"))
                         formatted_strings.append(f"<span class='tooltip'>KG{pos+1}<span class='tooltip-text tooltip-cit-kg'>{title} - {source}</span></span>")
                 return f"<sup id='cit'><span>[{','.join(formatted_strings)}]</span></sup>"
             pattern = r"\[((?:\s*(?:\d+|KG\d+)\s*,?)+)\]"
-            answer = re.sub(pattern, replace_citations, answer)
+            answer = re.sub(pattern, replace_citations, response.answer)
             ###
             if enable_rag_graph:
                 concepts_str = "<strong>QUERY</strong>\n<div class='concept_container'>"
-                for concept in response["query_concepts"]:
-                    concept_string = f"<div class='concept tooltip' id='cquery'>{concept['name'].upper()} <span class='tooltip-text'>ID: {concept['id']}, Match: {int(concept['match_score']*100)}%</span></div>"
+                for concept in response.concepts.query:
+                    concept_string = f"<div class='concept tooltip' id='cquery'>{concept.name.upper()} <span class='tooltip-text'>ID: {concept.id}, Match: {int(concept.match_score*100)}%</span></div>"
                     concepts_str += concept_string
                 concepts_str += "</div>\n<strong>ANSWER</strong>\n<div class='concept_container'>"
-                for concept in response["answer_concepts"]:
-                    concept_string = f"<div class='concept tooltip' id='canswer'>{concept['name'].upper()} <span class='tooltip-text'>ID: {concept['id']}, Match: {int(concept['match_score']*100)}%</span></div>"
+                for concept in response.concepts.answer:
+                    concept_string = f"<div class='concept tooltip' id='canswer'>{concept.name.upper()} <span class='tooltip-text'>ID: {concept.id}, Match: {int(concept.match_score*100)}%</span></div>"
                     concepts_str += concept_string
                 concepts_str += "</div>"
             ###
             citations = {}
             citations_str = ""
-            retrieved_documents = response["context"]["docs"]
-            retrieved_scores = response["context"]["scores"]
+            retrieved_documents = response.retrieved_documents.embeddings["docs"]
+            retrieved_scores = response.retrieved_documents.embeddings["scores"]
             for i, document in enumerate(retrieved_documents):
-                source = os.path.basename(document.metadata.get("source", "???"))
-                title = os.path.basename(document.metadata.get("title", "???"))
-                content = document.page_content
+                source = os.path.basename(document.get("metadata").get("source", "???"))
+                title = os.path.basename(document.get("metadata").get("title", "???"))
+                content = document.get("page_content")
                 doc_string = f"[{i+1}] **{title.strip()}** , **{source.strip()}** - *\"{textwrap.shorten(content,500)}\"* (Similarità: {dot_progress_bar(retrieved_scores[i])})"
                 citations.update({i: {"source":source, "content":content}})
                 citations_str += ("- "+doc_string+"\n")
-            citations_str += ("\nIDS: "+str([d.metadata.get("doc_id", "???") for d in retrieved_documents]))
+            citations_str += ("\nIDS: "+str([d.get("metadata").get("doc_id", "???") for d in retrieved_documents]))
             ###
             if enable_rag_graph:
                 kg_citations_str = ""
-                retrieved_documents = response["kg_context"]["docs"]
-                retrieved_scores = response["kg_context"]["scores"]
-                retrieved_paths = response["kg_context"]["paths"]
+                retrieved_documents = response.retrieved_documents.graphs["docs"]
+                retrieved_scores = response.retrieved_documents.graphs["scores"]
+                retrieved_paths = response.retrieved_documents.graphs["paths"]
                 for i, document in enumerate(retrieved_documents):
-                    source = os.path.basename(document.metadata.get("source", "???"))
-                    title = os.path.basename(document.metadata.get("title", "???"))
-                    content = document.page_content
+                    source = os.path.basename(document.get("metadata").get("source", "???"))
+                    title = os.path.basename(document.get("metadata").get("title", "???"))
+                    content = document.get("page_content")
                     doc_string = f"[KG{i+1}] **{title.strip()}** , **{source.strip()}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
                     kg_citations_str += ("- "+doc_string+"\n")
-                kg_citations_str += ("\nIDS: "+str([d.id for d in retrieved_documents]))
+                kg_citations_str += ("\nIDS: "+str([d.get("id") for d in retrieved_documents]))
                 return [gr.ChatMessage(role="assistant", content=answer),
                         gr.ChatMessage(role="assistant", content=concepts_str,
                                        metadata={"title": "🌐 SNOMED Concepts"}),
@@ -228,7 +261,7 @@ def update_stats():
     return [gr.Plot(plot_cumulative_tokens()), gr.Plot(get_eval_stats_plot()), stats['total_users'], stats['avg_input_tokens_per_user_per_day'], stats['avg_output_tokens_per_user_per_day'], round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)]
 
 with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {document.getElementById('options').style.display='none';}", theme=CUSTOM_THEME, css_paths="app.css", head_paths="app_head.html") as demo:
-    with Modal(visible=False) as modal:
+    with Modal(visible=False) as disclaimer_modal:
         gr.Markdown(gui_config.get("disclaimer"))
     gr.Markdown(gui_config.get("app_logo_html"))
     admin_state = gr.State(False)
@@ -244,7 +277,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
         user = gr.Text(label="Username")
         pw = gr.Text(label="Password", type="password")
         login_btn = gr.Button("Login")
-        login_result = gr.Textbox()
+        login_result = gr.Markdown()
 
     def login(user,pw):
         response =requests.post("https://dheal-com.unipv.it:7861/auth/login",
@@ -252,15 +285,12 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                       headers={"ContentType": "application/json"})
         if response.status_code == 200:
             token = response.json()["access-token"]
-            return f"Login successful", token, Modal(visible=False)
+            return f"Login successful", token, Modal(visible=False), Modal(visible=True)
         else:
-            return "Invalid credentials", None, Modal(visible=True)
+            return "Invalid credentials", None, Modal(visible=True), Modal(visible=False)
 
-    login_btn.click(
-        login,
-        inputs=[user, pw],
-        outputs=[access_token,login_result, loginmodal]
-    )
+    login_btn.click(login,inputs=[user, pw],outputs=[login_result, access_token, loginmodal, disclaimer_modal])
+    pw.submit(login, inputs=[user, pw], outputs=[login_result, access_token, loginmodal, disclaimer_modal])
 
     with Modal(visible=False) as evalmodal:
         like_dislike_state = gr.State("")
@@ -327,7 +357,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
         # Workaround to take into account username and ip address in logs
         # for some reason, overriding the like callback causes two consecutive calls at few ms of distance
         # we set a Session state flag to suppress the second call
-        # Session states are not shared between sessions, therefore there should be no concurrency issue
+        # Session states are not shared between sessions, therefore, there should be no concurrency issue
         double_log_flag = gr.State(True)
         def manual_logger(data: gr.LikeData, messages: list, double_log_flag, request: gr.Request):
             if double_log_flag:
@@ -369,7 +399,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
     #btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
     #admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
     #stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, eval_plot, stats_users, stats_input, stats_output, stats_ratio] )
-    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen,kb,qa,session_state])
+    demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,disclaimer_modal,disclaimer_seen,kb,qa,session_state])
 
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
