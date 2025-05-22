@@ -1,13 +1,12 @@
 import json
 from pathlib import Path
 import csv
-import boto3
+import requests
 import gradio as gr
 import os
 import logging
 import yaml
 import random
-from boto3 import Session
 import textwrap
 import re
 import io
@@ -45,8 +44,6 @@ os.chdir(wd)
 
 ############# LOCAL IMPORTS ##################
 from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
-from app_utils import get_mfa_response, token_auth, dot_progress_bar, get_admin_username, from_list_to_messages
-from rags import Rag
 
 ############# GLOBAL VARIABLES ##################
 LOG_STAT_FILE = "logs/token_usage.json"
@@ -54,47 +51,10 @@ LOG_FILE = "logs/usage_log.json"
 LOG_EVAL_FILE = "logs/evaluations.jsonl"
 LOG_CHAT_HISTORY = "logs/chat_history.txt"
 CUSTOM_THEME = gr.themes.Ocean().set(body_background_fill="linear-gradient(to right top, #f2f2f2, #f1f1f4, #f0f1f5, #eff0f7, #edf0f9, #ebf1fb, #e9f3fd, #e6f4ff, #e4f7ff, #e2faff, #e2fdff, #e3fffd)")
-RAG = Rag(session=Session(),
-          model=config.get("bedrock").get("models").get("model-id"),
-          embedder=config.get("bedrock").get("embedder-id"),
-          vector_store=config.get("vector-db-path"),
-          region=config.get("bedrock").get("region"),
-          model_pro=config.get("bedrock").get("models").get("pro-model-id"),
-          model_low=config.get("bedrock").get("models").get("low-model-id"))
-
-
-def update_rag(mfa_token, use_mfa_session=args.local):
-    global RAG
-    logger.debug("Trying to update rag...")
-    mfa_response = get_mfa_response(mfa_token)
-    if mfa_response is not None:
-        try:
-            if use_mfa_session:
-                session = boto3.Session(aws_access_key_id=mfa_response['Credentials']['AccessKeyId'],
-                                        aws_secret_access_key=mfa_response['Credentials']['SecretAccessKey'],
-                                        aws_session_token=mfa_response['Credentials']['SessionToken'])
-            else:
-                session = Session()
-            rag_attempt = Rag(session=session,
-                            model=config.get("bedrock").get("models").get("model-id"),
-                            embedder=config.get("bedrock").get("embedder-id"),
-                            vector_store=config.get("vector-db-path"),
-                            region=config.get("bedrock").get("region"),
-                            model_pro=config.get("bedrock").get("models").get("pro-model-id"),
-                            model_low=config.get("bedrock").get("models").get("low-model-id"))
-            RAG = rag_attempt
-            logger.debug("Rag updated")
-            return True, ""
-        except Exception as e:
-            logger.error("update failed")
-            logger.error(str(e))
-            return False, ""
-    else:
-        return False, ""
 
 def upload_file(filepath: str):
     global RAG
-    RAG.retriever.upload_file(filepath)
+    #RAG.retriever.upload_file(filepath)
 
 #20K = approx 20 cents with most expensive models
 def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
@@ -112,8 +72,7 @@ def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
     else:
         return False
 
-def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, retrieve_only, additional_context, request: gr.Request):
-    global RAG
+def reply(message, history, is_admin, access_token, enable_rag, enable_rag_graph, query_aug, retrieve_only, additional_context, request: gr.Request):
     admin_or_test = is_admin or request.username=="test" or args.debug
     is_banned = check_ban(request.client.host) if not admin_or_test else False #don't check if admin or testing
     if is_banned:
@@ -122,14 +81,21 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, r
         return [gr.ChatMessage(role="assistant", content="Sembra che tu abbia esaurito la tua quota giornaliera. Riprova più tardi.")]
     try:
         if enable_rag:
-            response = RAG.invoke({"query": message,
-                                   "history": from_list_to_messages(history),
-                                   "additional_context": additional_context,
-                                   "input_tokens_count":0,
-                                   "output_tokens_count":0,
-                                   "query_aug": query_aug,
-                                   "retrieve_only": retrieve_only,
-                                   "use_graph": enable_rag_graph})
+            url = "https://dheal-com.unipv.it:7861/generate"
+            data = {'user_input': message,
+                      'history': history,
+                      "additional_context": additional_context,
+                      "augment_query": query_aug,
+                      "use_graph": enable_rag_graph,
+                      "retrieve_only": retrieve_only,
+                      "use_embeddings": enable_rag
+            }
+            params = {'access_token': access_token}
+            response_raw = requests.post(url,
+                                     data=json.dumps(data),
+                                     params=params,
+                                     headers={"ContentType": "application/json"})
+            response = response_raw.json()
             answer = response["answer"]
             input_tokens_count = response["input_tokens_count"]
             output_tokens_count = response["output_tokens_count"]
@@ -204,7 +170,7 @@ def reply(message, history, is_admin, enable_rag, enable_rag_graph, query_aug, r
                         gr.ChatMessage(role="assistant", content=citations_str,
                                     metadata={"title": "📖 Linee guida correlate"})]
         else:
-            response = RAG.generate_norag(message)
+            response = {} #RAG.generate_norag(message)
             answer = response["answer"]
             return gr.ChatMessage(role="assistant", content=answer)
     except Exception as e:
@@ -234,7 +200,7 @@ def onload(disclaimer_seen:bool, request: gr.Request):
         "query_params":dict(request.query_params)
     }
     logger.debug(f"Login details: {logging_info}")
-    is_admin = request.username == get_admin_username()
+    is_admin = False
     admin_priviledges = is_admin or args.debug
     if not disclaimer_seen:
         modal_visible = True
@@ -267,11 +233,34 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
     gr.Markdown(gui_config.get("app_logo_html"))
     admin_state = gr.State(False)
     disclaimer_seen = gr.BrowserState(False)
+    access_token = gr.State(None)
     kb = gr.Checkbox(label="Usa Knowledge Base", value=True, render=False)
     graph = gr.Checkbox(label="Usa Knowledge Graphs", value=True, render=False)
     qa = gr.Checkbox(label="Usa Query Augmentation", value=False, render=False)
     ro = gr.Checkbox(label="Usa solo come recupero fonti", value=False, render=False)
     session_state =gr.State()
+
+    with Modal(visible=True) as loginmodal:
+        user = gr.Text(label="Username")
+        pw = gr.Text(label="Password", type="password")
+        login_btn = gr.Button("Login")
+        login_result = gr.Textbox()
+
+    def login(user,pw):
+        response =requests.post("https://dheal-com.unipv.it:7861/auth/login",
+                      data=json.dumps({"username":user,"password":pw}),
+                      headers={"ContentType": "application/json"})
+        if response.status_code == 200:
+            token = response.json()["access-token"]
+            return f"Login successful", token, Modal(visible=False)
+        else:
+            return "Invalid credentials", None, Modal(visible=True)
+
+    login_btn.click(
+        login,
+        inputs=[user, pw],
+        outputs=[access_token,login_result, loginmodal]
+    )
 
     with Modal(visible=False) as evalmodal:
         like_dislike_state = gr.State("")
@@ -316,7 +305,7 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
                                      save_history=True,
                                      analytics_enabled = False,
                                      examples=[[e] for e in config.get('gradio').get('examples')],
-                                     additional_inputs=[admin_state,
+                                     additional_inputs=[admin_state, access_token,
                                                         kb,
                                                         graph,
                                                         qa,
@@ -374,34 +363,17 @@ with gr.Blocks(title=gui_config.get("app_title"), js="function anything() {docum
         with gr.Group():
             mfa_input = gr.Textbox(label="AWS MFA token", placeholder="123456", type="password")
             btn = gr.Button("Confirm")
-    with gr.Tab("Admin Panel", visible=False) as stats_tab:
-        with gr.Group():
-            stats = get_usage_stats()
-            with gr.Row():
-                stats_users = gr.Textbox(label="Total users", value=f"{stats['total_users']}", interactive=False)
-                stats_input = gr.Textbox(label="Average user input [tokens/dd]", value=f"{stats['avg_input_tokens_per_user_per_day']}", interactive=False)
-                stats_output = gr.Textbox(label="Average user output [tokens/dd]", value=f"{stats['avg_output_tokens_per_user_per_day']}", interactive=False)
-                stats_ratio = gr.Textbox(label="Input/Output ratio", value=f"{round(stats['avg_input_tokens_per_user_per_day']/stats['avg_output_tokens_per_user_per_day'],2)}", interactive=False)
-            with gr.Row():
-                stats_plot = gr.Plot(plot_cumulative_tokens())
-                eval_plot = gr.Plot(get_eval_stats_plot())
-            stats_heat = gr.Plot(plot_daily_tokens_heatmap())
-            with gr.Row():
-                usage_log_btn = gr.DownloadButton("Usage Log Download", value="logs/usage_log.json")
-                evaluation_log_btn = gr.DownloadButton("Evaluations Download", value="logs/evaluations.jsonl")
-        #with gr.Group():
-            #gr.Image(label="Workflow schema", value=Image.open(io.BytesIO(RAG.get_image())))
     gr.HTML("<br><div style='display:flex; justify-content:center; align-items:center'><img src='gradio_api/file=./assets/u.png' style='width:7%; min-width : 100px;'><img src='gradio_api/file=./assets/d.png' style='width:7%; padding-left:1%; padding-right:1%; min-width : 100px;'><img src='gradio_api/file=./assets/b.png' style='width:7%; min-width : 100px;'></div><br><div style='display:flex; justify-content:center; align-items:center'><small>© 2024 - 2025 | BMI Lab 'Mario Stefanelli' | DHEAL-COM | <a href='https://github.com/detsutut/dheal-com-rag-demo'>GitHub</a> </small></div>", elem_id="footer")
     upload_button.upload(upload_file, upload_button, None)
-    mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
-    btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
-    admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
-    stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, eval_plot, stats_users, stats_input, stats_output, stats_ratio] )
+    #mfa_input.submit(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
+    #btn.click(fn=update_rag, inputs=[mfa_input], outputs=[admin_state,mfa_input])
+    #admin_state.change(toggle_interactivity, inputs=admin_state, outputs=[upload_button,stats_tab,kb,qa])
+    #stats_tab.select(update_stats, inputs=None, outputs=[stats_plot, eval_plot, stats_users, stats_input, stats_output, stats_ratio] )
     demo.load(onload, inputs=disclaimer_seen, outputs=[admin_state,modal,disclaimer_seen,kb,qa,session_state])
 
 demo.launch(server_name="0.0.0.0",
             server_port=7860,
-            auth=token_auth if not args.debug else None,
+            auth=None,
             ssl_keyfile = args.ssl_keyfile,
             ssl_certfile = args.ssl_certfile,
             ssl_verify = False,
