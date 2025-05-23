@@ -20,7 +20,6 @@ parser.add_argument('--settings', action="store", dest='settings_file', default=
 parser.add_argument('--sslcert', action="store", dest='ssl_certfile', default=None)
 parser.add_argument('--sslkey', action="store", dest='ssl_keyfile', default=None)
 parser.add_argument('--debug', action="store", dest='debug', default=False, type=bool)
-parser.add_argument('--local', action="store", dest='local', default=False, type=bool)
 args = parser.parse_args()
 
 ############# LOGGER ##################
@@ -38,7 +37,8 @@ os.chdir(wd)
 
 ############# LOCAL IMPORTS ##################
 from app_logging import get_usage_stats, log_token_usage, read_usage_log, plot_daily_tokens_heatmap, update_usage_log, plot_cumulative_tokens, export_history, get_eval_stats_plot
-from app_utils import dot_progress_bar, LLMResponse
+from app_utils import dot_progress_bar, parse_citations, parse_concepts, parse_references
+from data_models import LLMResponse
 
 ############# GLOBAL VARIABLES ##################
 LOG_STAT_FILE = "logs/token_usage.json"
@@ -69,6 +69,7 @@ def check_ban(ip_address: str, max_tokens: int = 20000) -> bool:
 
 
 def reply(message, history, is_admin, access_token, enable_rag, enable_rag_graph, query_aug, retrieve_only, additional_context, request: gr.Request):
+    # Check if the user is banned before sending a request to the LLM
     admin_or_test = is_admin or request.username=="test" or args.debug
     is_banned = check_ban(request.client.host) if not admin_or_test else False #don't check if admin or testing
     if is_banned:
@@ -76,105 +77,67 @@ def reply(message, history, is_admin, access_token, enable_rag, enable_rag_graph
         gr.Error("Error: exceeded daily usage limit")
         return [gr.ChatMessage(role="assistant", content="Sembra che tu abbia esaurito la tua quota giornaliera. Riprova più tardi.")]
     try:
-        if enable_rag:
-            url = "https://dheal-com.unipv.it:7861/generate"
-            data = {'user_input': message,
-                      'history': history,
-                      "additional_context": additional_context,
-                      "augment_query": query_aug,
-                      "use_graph": enable_rag_graph,
-                      "retrieve_only": retrieve_only,
-                      "use_embeddings": enable_rag
-            }
-            params = {'access_token': access_token}
-            res = requests.post(url,
-                                     data=json.dumps(data),
-                                     params=params,
-                                     headers={"ContentType": "application/json"})
-            if res.status_code != 200:
-                return gr.ChatMessage(role="assistant", content="Unexpected error.")
-            else:
-                try:
-                    response = LLMResponse.model_validate(res.json())
-                except Exception as e:
-                    return gr.ChatMessage(role="assistant", content="Unexpected error.")
-            update_usage_log(request.client.host, response.input_tokens_count+response.output_tokens_count*4, False)
-            log_token_usage(request.client.host, response.input_tokens_count, response.output_tokens_count)
-            retrieved_documents = response.retrieved_documents.embeddings["docs"]
-            retrieved_documents_kg = response.retrieved_documents.graphs["docs"]
-            def replace_citations(match):
-                raw_refs = [ref.strip() for ref in match.group(1).split(',')]
-                formatted_strings=[]
-                for ref in raw_refs:
-                    pos = int(re.findall(r"\d+", ref)[0])-1
-                    if re.fullmatch(r"\d+", ref):
-                        document = retrieved_documents[pos]
-                        source = os.path.basename(document.get("metadata").get("source", "???"))
-                        title = os.path.basename(document.get("metadata").get("title", "???"))
-                        formatted_strings.append(f"<span class='tooltip'>{pos+1}<span class='tooltip-text tooltip-cit'>{title} - {source}</span></span>")
-                    elif re.fullmatch(r"KG\d+", ref):
-                        document = retrieved_documents_kg[pos]
-                        source = os.path.basename(document.get("metadata").get("source", "???"))
-                        title = os.path.basename(document.get("metadata").get("title", "???"))
-                        formatted_strings.append(f"<span class='tooltip'>KG{pos+1}<span class='tooltip-text tooltip-cit-kg'>{title} - {source}</span></span>")
-                return f"<sup id='cit'><span>[{','.join(formatted_strings)}]</span></sup>"
-            pattern = r"\[((?:\s*(?:\d+|KG\d+)\s*,?)+)\]"
-            answer = re.sub(pattern, replace_citations, response.answer)
-            ###
-            if enable_rag_graph:
-                concepts_str = "<strong>QUERY</strong>\n<div class='concept_container'>"
-                for concept in response.concepts.query:
-                    concept_string = f"<div class='concept tooltip' id='cquery'>{concept.name.upper()} <span class='tooltip-text'>ID: {concept.id}, Match: {int(concept.match_score*100)}%</span></div>"
-                    concepts_str += concept_string
-                concepts_str += "</div>\n<strong>ANSWER</strong>\n<div class='concept_container'>"
-                for concept in response.concepts.answer:
-                    concept_string = f"<div class='concept tooltip' id='canswer'>{concept.name.upper()} <span class='tooltip-text'>ID: {concept.id}, Match: {int(concept.match_score*100)}%</span></div>"
-                    concepts_str += concept_string
-                concepts_str += "</div>"
-            ###
-            citations = {}
-            citations_str = ""
-            retrieved_documents = response.retrieved_documents.embeddings["docs"]
-            retrieved_scores = response.retrieved_documents.embeddings["scores"]
-            for i, document in enumerate(retrieved_documents):
-                source = os.path.basename(document.get("metadata").get("source", "???"))
-                title = os.path.basename(document.get("metadata").get("title", "???"))
-                content = document.get("page_content")
-                doc_string = f"[{i+1}] **{title.strip()}** , **{source.strip()}** - *\"{textwrap.shorten(content,500)}\"* (Similarità: {dot_progress_bar(retrieved_scores[i])})"
-                citations.update({i: {"source":source, "content":content}})
-                citations_str += ("- "+doc_string+"\n")
-            citations_str += ("\nIDS: "+str([d.get("metadata").get("doc_id", "???") for d in retrieved_documents]))
-            ###
-            if enable_rag_graph:
-                kg_citations_str = ""
-                retrieved_documents = response.retrieved_documents.graphs["docs"]
-                retrieved_scores = response.retrieved_documents.graphs["scores"]
-                retrieved_paths = response.retrieved_documents.graphs["paths"]
-                for i, document in enumerate(retrieved_documents):
-                    source = os.path.basename(document.get("metadata").get("source", "???"))
-                    title = os.path.basename(document.get("metadata").get("title", "???"))
-                    content = document.get("page_content")
-                    doc_string = f"[KG{i+1}] **{title.strip()}** , **{source.strip()}** - *\"{textwrap.shorten(content,100)}\"* - (Distanza: {dot_progress_bar(retrieved_scores[i], absolute=True)}) \n{retrieved_paths[i]}"
-                    kg_citations_str += ("- "+doc_string+"\n")
-                kg_citations_str += ("\nIDS: "+str([d.get("id") for d in retrieved_documents]))
-                return [gr.ChatMessage(role="assistant", content=answer),
-                        gr.ChatMessage(role="assistant", content=concepts_str,
-                                       metadata={"title": "🌐 SNOMED Concepts"}),
-                        gr.ChatMessage(role="assistant", content=kg_citations_str,
-                                       metadata={"title": "🌐 Percorsi collegati"}),
-                        gr.ChatMessage(role="assistant", content=citations_str,
-                                    metadata={"title": "📖 Linee guida correlate"})]
-            else:
-                return [gr.ChatMessage(role="assistant", content=answer),
-                        gr.ChatMessage(role="assistant", content=citations_str,
-                                    metadata={"title": "📖 Linee guida correlate"})]
+        # Send the request to the LLM
+        url = "https://dheal-com.unipv.it:7861/generate"
+        data = {'user_input': message,
+                  'history': history,
+                  "additional_context": additional_context,
+                  "augment_query": query_aug,
+                  "use_graph": enable_rag_graph,
+                  "retrieve_only": retrieve_only,
+                  "use_embeddings": enable_rag
+        }
+        params = {'access_token': access_token}
+        res = requests.post(url,
+                                 data=json.dumps(data),
+                                 params=params,
+                                 headers={"ContentType": "application/json"})
+        # Check the response status code and parse the response
+        if res.status_code != 200:
+            return gr.ChatMessage(role="assistant", content="Unexpected error.")
         else:
-            response = {} #RAG.generate_norag(message)
-            answer = response["answer"]
-            return gr.ChatMessage(role="assistant", content=answer)
+            try:
+                response = LLMResponse.model_validate(res.json())
+            except Exception as e:
+                return gr.ChatMessage(role="assistant", content="Unexpected error.")
+
+        ai_messages = []
+
+        # Update usage log for this user
+        update_usage_log(request.client.host, response.input_tokens_count+response.output_tokens_count*4, False)
+        log_token_usage(request.client.host, response.input_tokens_count, response.output_tokens_count)
+
+        ### Parse citations into aesthetically pleasing HTML
+        answer = parse_citations(response.answer,
+                                 retrieved_documents=response.retrieved_documents.embeddings["docs"],
+                                 retrieved_documents_kg=response.retrieved_documents.graphs["docs"])
+        ai_messages.append(gr.ChatMessage(role="assistant", content=answer))
+        ### Parse concepts into aesthetically pleasing HTML
+        if enable_rag_graph:
+            concepts_str = ""
+            query_concepts_str = parse_concepts(title="QUERY", concepts=response.concepts.query, type="query")
+            answer_concepts_str = parse_concepts(title="QUERY", concepts=response.concepts.answer, type="answer")
+            concepts_str += (query_concepts_str+"\n"+answer_concepts_str)
+            ai_messages.append(gr.ChatMessage(role="assistant", content=concepts_str, metadata={"title": "🌐 SNOMED Concepts"}))
+        ### Parse references into aesthetically pleasing HTML
+        if enable_rag:
+            references_str = ""
+            embeddings_str = parse_references(response.retrieved_documents.embeddings)
+            references_str += embeddings_str
+            ai_messages.append(gr.ChatMessage(role="assistant", content=references_str,
+                                    metadata={"title": "📖 Linee guida correlate"}))
+        ### Parse kg references into aesthetically pleasing HTML
+        if enable_rag_graph:
+            references_str = ""
+            embeddings_str = parse_references(response.retrieved_documents.graphs, graphs=True)
+            references_str += embeddings_str
+            ai_messages.append(gr.ChatMessage(role="assistant", content=references_str,
+                                    metadata={"title": "🌐 Linee guida collegate"}))
+        return ai_messages
     except Exception as e:
         logger.error(traceback.format_exc())
         gr.Error("Error: " + str(e))
+        return gr.ChatMessage(role="assistant", content="Unexpected error.")
 
 def usereval(*args):
     global eval_components
